@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Saldar Serviços • Versão 7</title>
+  <title>Saldar Serviços • Versão 8</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
@@ -14,7 +14,7 @@
 <body>
   <section class="auth-shell" id="authShell">
     <div class="auth-card">
-      <p class="eyebrow">Versão 7 • Operação e backup</p>
+      <p class="eyebrow">Versão 8 • Operação, backup e auditoria</p>
       <h1>Saldar Serviços</h1>
       <p class="auth-copy">Controle stock, vendas, caixa, usuários, relatórios e backup com modo local e base pronta para sincronização online.</p>
       <div class="mode-strip">
@@ -69,16 +69,10 @@
             Configuração Firebase (JSON)
             <textarea id="firebaseConfigInput" rows="8" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
           </label>
-
-          <!-- ========================================================= -->
-          <!-- PATCH 4.2 — Whitelist de administradores online            -->
-          <!-- ========================================================= -->
           <label>
             Emails de administrador (separados por vírgula)
             <input type="text" id="adminEmailsInput" placeholder="admin@exemplo.com, gestor@exemplo.com" />
           </label>
-          <!-- ========================================================= -->
-
           <button type="button" class="primary" id="saveCloudConfigBtn">Salvar configuração</button>
           <p class="status-text" id="cloudStatusText">Sem configuração online ativa.</p>
         </div>
@@ -105,8 +99,8 @@
 
     <section class="hero-card">
       <div>
-        <h2>Versão 6 com gestão operacional reforçada</h2>
-        <p>Agora com backup e restauração, gestão local de usuários, filtros de produtos e relatórios por período.</p>
+        <h2>Versão 8 com auditoria integrada</h2>
+        <p>Agora com registo de todas as ações sensíveis, backup, gestão de usuários, filtros de produtos e relatórios por período.</p>
       </div>
       <div class="hero-chip">AOA</div>
     </section>
@@ -123,6 +117,7 @@
       <button class="tab" data-tab="relatorio" data-role="admin">Relatório</button>
       <button class="tab" data-tab="usuarios" data-role="admin">Usuários</button>
       <button class="tab" data-tab="backup" data-role="admin">Backup</button>
+      <button class="tab" data-tab="auditoria" data-role="admin">Auditoria</button>
       <button class="tab" data-tab="nuvem">Nuvem</button>
     </nav>
 
@@ -149,16 +144,10 @@
             <h3>Atividade recente</h3>
             <div id="recentActivity" class="list"></div>
           </div>
-
-          <!-- ========================================================= -->
-          <!-- PATCH 6.5 — Dashboard Financeiro visível apenas a admins   -->
-          <!-- ========================================================= -->
           <div class="card full-width-card" id="financeiroCard" data-perm="verFinanceiro">
             <h3>📊 Dashboard Financeiro</h3>
             <div id="financeiroContent" class="list"></div>
           </div>
-          <!-- ========================================================= -->
-
         </div>
       </section>
 
@@ -349,13 +338,7 @@
             </select>
           </div>
           <div id="dailyReport" class="list"></div>
-
-          <!-- ========================================================= -->
-          <!-- PATCH 6.9 — Botão PDF só visível a quem tem permissão      -->
-          <!-- ========================================================= -->
           <button class="primary full-span" id="exportPdfBtn" data-perm="relatorio" style="margin-top: 16px;">📄 Exportar Relatório PDF</button>
-          <!-- ========================================================= -->
-
         </div>
       </section>
 
@@ -405,7 +388,7 @@
           <div class="list">
             <div class="item">
               <strong>Exportar backup</strong>
-              <span>Baixe um arquivo JSON com produtos, vendas, caixa e usuários.</span>
+              <span>Baixe um arquivo JSON com produtos, vendas, caixa, usuários e registos de auditoria.</span>
               <div class="card-actions">
                 <button type="button" class="primary" id="exportBackupBtn">Exportar backup</button>
               </div>
@@ -425,6 +408,40 @@
           </div>
         </div>
       </section>
+
+      <!-- ========================================================= -->
+      <!-- PATCH 7 — Novo separador Auditoria                         -->
+      <!-- ========================================================= -->
+      <section class="tab-panel" id="auditoria">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Registo de auditoria</h3>
+              <p class="mini-text">Histórico de todas as ações sensíveis (vendas, stock, caixa, produtos, utilizadores, login/logout).</p>
+            </div>
+          </div>
+          <div class="filter-row">
+            <select id="auditLogFilter">
+              <option value="todos">Todas as ações</option>
+              <option value="venda">Vendas</option>
+              <option value="stock">Entradas de stock</option>
+              <option value="caixa">Movimentos de caixa</option>
+              <option value="produto-criar">Produtos criados</option>
+              <option value="produto-editar">Produtos editados</option>
+              <option value="produto-remover">Produtos removidos</option>
+              <option value="user-criar">Utilizadores criados</option>
+              <option value="user-editar">Utilizadores editados</option>
+              <option value="user-remover">Utilizadores removidos</option>
+              <option value="user-toggle">Utilizadores ativados/desativados</option>
+              <option value="user-reset-pass">Reposições de senha</option>
+              <option value="login">Logins</option>
+              <option value="logout">Logouts</option>
+            </select>
+          </div>
+          <div id="auditLogList" class="list"></div>
+        </div>
+      </section>
+      <!-- ========================================================= -->
 
       <section class="tab-panel" id="nuvem">
         <div class="card">
