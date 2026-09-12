@@ -1,39 +1,6 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v6 + patches 1–6 + DIAGNÓSTICO)
+// SALDAR SERVIÇOS — app.js (v6 + patches 1–6 + diagnóstico login)
 // =====================================================================
-
-// ============================================================
-// 🔍 DIAGNÓSTICO TEMPORÁRIO — REMOVER DEPOIS DE RESOLVER
-// ============================================================
-window.addEventListener('error', (e) => {
-  try {
-    alert('❌ ERRO GLOBAL:\n\n' + (e.error?.stack || e.message || String(e)));
-  } catch {}
-});
-window.addEventListener('unhandledrejection', (e) => {
-  try {
-    alert('❌ PROMISE REJEITADA:\n\n' + (e.reason?.stack || e.reason?.message || String(e.reason)));
-  } catch {}
-});
-
-// Intercepta console.error para mostrar erros do Firebase Auth
-const _origConsoleError = console.error.bind(console);
-console.error = function (...args) {
-  _origConsoleError(...args);
-  try {
-    const first = args[0];
-    if (first && typeof first === 'object') {
-      const code = first.code || first?.error?.code;
-      if (code && String(code).startsWith('auth/')) {
-        alert('❌ Firebase Auth [' + code + ']:\n\n' + (first.message || first?.error?.message || ''));
-      }
-    }
-  } catch {}
-};
-
-// ============================================================
-// APP
-// ============================================================
 
 const LOCAL_KEY = 'saldar-servicos-v5-local';
 const SETTINGS_KEY = 'saldar-servicos-v5-settings';
@@ -43,6 +10,8 @@ const LEGACY_SETTING_KEYS = ['saldar-servicos-v4-settings', 'saldar-servicos-v3-
 const today = () => new Date().toISOString().slice(0, 10);
 const now = () => new Date().toISOString();
 const money = (v) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'AOA', maximumFractionDigits: 2 }).format(Number(v || 0));
+
+// ---------- Utilitários de segurança ----------
 
 const uid = () => {
   try {
@@ -68,7 +37,7 @@ async function hashPassword(pass) {
 const isHash = (s) => typeof s === 'string' && /^[a-f0-9]{64}$/i.test(s);
 
 // =====================================================================
-// Defaults
+// Estado inicial
 // =====================================================================
 
 function defaults() {
@@ -172,8 +141,7 @@ const session = {
   api: null,
   cloudUsers: [],
   unsubAuth: null,
-  lastAuthError: null,
-  lastErrorDetails: null
+  lastAuthError: null  // <-- DIAGNÓSTICO
 };
 
 const saveLocal = () => localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
@@ -316,8 +284,7 @@ const els = {
   resendVerifyLink: document.getElementById('resendVerifyLink')
 };
 
-function toast(message, duration = 15000) {
-  if (!els.toast) return;
+function toast(message, duration = 4000) {
   els.toast.textContent = message;
   els.toast.classList.remove('hidden');
   clearTimeout(window.__toastTimer);
@@ -325,7 +292,7 @@ function toast(message, duration = 15000) {
 }
 
 // =====================================================================
-// Diagnóstico
+// Diagnóstico (útil enquanto resolvemos o login)
 // =====================================================================
 
 window.__saldarDebug = function() {
@@ -338,33 +305,15 @@ window.__saldarDebug = function() {
     hasDb: !!session.db,
     hasApi: !!session.api,
     lastAuthError: session.lastAuthError,
-    lastErrorDetails: session.lastErrorDetails,
     configValid: !!cfg,
     configKeys: cfg ? Object.keys(cfg) : [],
-    missingKeys: cfg
-      ? ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].filter(k => !cfg[k])
-      : ['TODAS (JSON inválido)'],
-    projectId: cfg?.projectId || null
+    missingKeys: cfg ? ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId']
+      .filter(k => !cfg[k]) : ['TODAS (JSON inválido)'],
+    projectId: cfg?.projectId || null,
+    settingsRaw: settings.firebaseConfig?.slice(0, 80) + '...'
   };
-  _origConsoleError('[__saldarDebug]', info);
+  console.table(info);
   return info;
-};
-
-window.__saldarLimparCache = async function() {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const r of regs) await r.unregister();
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      for (const k of keys) await caches.delete(k);
-    }
-    alert('✅ Cache limpo. A recarregar...');
-    location.reload(true);
-  } catch (e) {
-    alert('Erro ao limpar: ' + e.message);
-  }
 };
 
 // =====================================================================
@@ -374,10 +323,11 @@ window.__saldarLimparCache = async function() {
 function parseFirebaseConfig() {
   try {
     const parsed = JSON.parse(settings.firebaseConfig || '{}');
+    // Validação básica
     if (!parsed || typeof parsed !== 'object') return null;
     return parsed;
   } catch (err) {
-    _origConsoleError('[parseFirebaseConfig] JSON inválido:', err);
+    console.error('[parseFirebaseConfig] JSON inválido:', err, 'Conteúdo:', settings.firebaseConfig);
     return null;
   }
 }
@@ -389,43 +339,43 @@ function cloudProjectName() {
 
 function markMode() {
   const online = cloudMode();
-  if (els.modeBadge) els.modeBadge.textContent = online ? 'Modo online' : 'Modo local';
-  if (els.cloudTopBadge) els.cloudTopBadge.textContent = online ? 'Firebase' : 'Local';
-  if (els.authHint) els.authHint.textContent = online ? 'Use email e palavra-passe para entrar no modo online.' : 'Use os acessos locais ou ative o modo online com Firebase.';
-  if (els.localAccessBox) els.localAccessBox.classList.toggle('hidden', online);
-  if (els.cloudStatusText) els.cloudStatusText.textContent = online ? `Configuração online salva para o projeto ${cloudProjectName()}.` : 'Sem configuração online ativa.';
-  if (els.forgotPasswordLink) els.forgotPasswordLink.classList.toggle('hidden', !online);
-  if (els.resendVerifyLink) els.resendVerifyLink.classList.toggle('hidden', !online);
+  els.modeBadge.textContent = online ? 'Modo online' : 'Modo local';
+  els.cloudTopBadge.textContent = online ? 'Firebase' : 'Local';
+  els.authHint.textContent = online ? 'Use email e palavra-passe para entrar no modo online.' : 'Use os acessos locais ou ative o modo online com Firebase.';
+  els.localAccessBox.classList.toggle('hidden', online);
+  els.cloudStatusText.textContent = online ? `Configuração online salva para o projeto ${cloudProjectName()}.` : 'Sem configuração online ativa.';
+  els.forgotPasswordLink.classList.toggle('hidden', !online);
+  els.resendVerifyLink.classList.toggle('hidden', !online);
 }
 
 function switchAuthView(view = 'login') {
   session.authView = view;
   const online = cloudMode();
-  if (els.loginLabel) els.loginLabel.textContent = online ? 'Email' : 'Usuário';
-  if (els.userLoginLabel) els.userLoginLabel.textContent = online ? 'Email (apenas online)' : 'Nome de usuário';
-  if (els.userPassLabel) els.userPassLabel.textContent = online ? 'Palavra-passe' : 'Palavra-passe';
-  if (els.switchAuthModeBtn) els.switchAuthModeBtn.classList.toggle('hidden', !online);
+  els.loginLabel.textContent = online ? 'Email' : 'Usuário';
+  els.userLoginLabel.textContent = online ? 'Email (apenas online)' : 'Nome de usuário';
+  els.userPassLabel.textContent = online ? 'Palavra-passe' : 'Palavra-passe';
+  els.switchAuthModeBtn.classList.toggle('hidden', !online);
 
   if (!online) {
-    if (els.fullNameWrap) els.fullNameWrap.classList.add('hidden');
-    if (els.confirmWrap) els.confirmWrap.classList.add('hidden');
-    if (els.loginSubmitBtn) els.loginSubmitBtn.textContent = 'Entrar';
-    if (els.switchAuthModeBtn) els.switchAuthModeBtn.textContent = 'Criar conta online';
-    if (els.userSubmitBtn) els.userSubmitBtn.textContent = 'Criar usuário';
-    if (els.forgotPasswordLink) els.forgotPasswordLink.classList.add('hidden');
-    if (els.resendVerifyLink) els.resendVerifyLink.classList.add('hidden');
+    els.fullNameWrap.classList.add('hidden');
+    els.confirmWrap.classList.add('hidden');
+    els.loginSubmitBtn.textContent = 'Entrar';
+    els.switchAuthModeBtn.textContent = 'Criar conta online';
+    els.userSubmitBtn.textContent = 'Criar usuário';
+    els.forgotPasswordLink.classList.add('hidden');
+    els.resendVerifyLink.classList.add('hidden');
     return;
   }
 
   const register = view === 'register';
-  if (els.fullNameWrap) els.fullNameWrap.classList.toggle('hidden', !register);
-  if (els.confirmWrap) els.confirmWrap.classList.toggle('hidden', !register);
-  if (els.loginSubmitBtn) els.loginSubmitBtn.textContent = register ? 'Criar conta online' : 'Entrar';
-  if (els.switchAuthModeBtn) els.switchAuthModeBtn.textContent = register ? 'Voltar ao login' : 'Criar conta online';
+  els.fullNameWrap.classList.toggle('hidden', !register);
+  els.confirmWrap.classList.toggle('hidden', !register);
+  els.loginSubmitBtn.textContent = register ? 'Criar conta online' : 'Entrar';
+  els.switchAuthModeBtn.textContent = register ? 'Voltar ao login' : 'Criar conta online';
 }
 
 // =====================================================================
-// Shell
+// Shell / Permissões aplicadas
 // =====================================================================
 
 function showApp(show) {
@@ -481,14 +431,14 @@ function require(feature, msg) {
 
 function renderUserHeader() {
   const current = getCurrentUser();
-  if (els.currentUserName) els.currentUserName.textContent = current?.fullName || 'Sem sessão';
-  if (els.currentUserRole) els.currentUserRole.textContent = roleLabel(current?.role || 'operador');
+  els.currentUserName.textContent = current?.fullName || 'Sem sessão';
+  els.currentUserRole.textContent = roleLabel(current?.role || 'operador');
 }
 
 function renderSelectOptions() {
   const options = state.products.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-  if (els.stockProduct) els.stockProduct.innerHTML = options;
-  if (els.saleProduct) els.saleProduct.innerHTML = options;
+  els.stockProduct.innerHTML = options;
+  els.saleProduct.innerHTML = options;
   syncPrice();
   syncMin();
   updateSaleHint();
@@ -568,55 +518,42 @@ function renderStats() {
     stats.splice(3, 0, { label: 'Caixa acumulado', value: money(getCashBalance()) });
   }
 
-  if (els.statsGrid) {
-    els.statsGrid.innerHTML = stats
-      .map((s) => `<div class="stat"><small>${esc(s.label)}</small><strong>${esc(s.value)}</strong></div>`)
-      .join('');
-  }
+  els.statsGrid.innerHTML = stats
+    .map((s) => `<div class="stat"><small>${esc(s.label)}</small><strong>${esc(s.value)}</strong></div>`)
+    .join('');
 }
 
 function renderDashboard() {
-  if (els.productSummary) {
-    els.productSummary.innerHTML = state.products.length
-      ? state.products.map((p) => `<div class="item"><strong>${esc(p.name)}</strong><span>${esc(p.category)}</span><br /><span>${p.category === 'RL' ? money(p.stock) + ' (saldo)' : p.stock + ' un.'} • ${p.category === 'RL' ? 'Preço variável' : money(p.price)}</span></div>`).join('')
-      : '<div class="item empty-state">Sem produtos cadastrados.</div>';
-  }
+  els.productSummary.innerHTML = state.products.length
+    ? state.products.map((p) => `<div class="item"><strong>${esc(p.name)}</strong><span>${esc(p.category)}</span><br /><span>${p.category === 'RL' ? money(p.stock) + ' (saldo)' : p.stock + ' un.'} • ${p.category === 'RL' ? 'Preço variável' : money(p.price)}</span></div>`).join('')
+    : '<div class="item empty-state">Sem produtos cadastrados.</div>';
 
   const lows = state.products.filter((p) => Number(p.stock || 0) <= Number(p.minStock || 0));
-  if (els.lowStockList) {
-    els.lowStockList.innerHTML = lows.length
-      ? lows.map((p) => `<div class="item"><strong>${esc(p.name)}</strong><span class="badge low">Stock baixo: ${p.category === 'RL' ? money(p.stock) : p.stock}</span></div>`).join('')
-      : '<div class="item"><strong>Sem alertas</strong><span>Todos os produtos estão acima do mínimo.</span></div>';
-  }
+  els.lowStockList.innerHTML = lows.length
+    ? lows.map((p) => `<div class="item"><strong>${esc(p.name)}</strong><span class="badge low">Stock baixo: ${p.category === 'RL' ? money(p.stock) : p.stock}</span></div>`).join('')
+    : '<div class="item"><strong>Sem alertas</strong><span>Todos os produtos estão acima do mínimo.</span></div>';
 
   const tops = topSalesToday();
-  if (els.topSalesList) {
-    els.topSalesList.innerHTML = tops.length
-      ? tops.map(([name, qty]) => `<div class="item"><strong>${esc(name)}</strong><span>${qty} ${qty === 1 ? 'unidade' : 'unidades'} vendidas hoje</span></div>`).join('')
-      : '<div class="item"><strong>Sem vendas hoje</strong><span>Registre vendas para visualizar o ranking.</span></div>';
-  }
+  els.topSalesList.innerHTML = tops.length
+    ? tops.map(([name, qty]) => `<div class="item"><strong>${esc(name)}</strong><span>${qty} ${qty === 1 ? 'unidade' : 'unidades'} vendidas hoje</span></div>`).join('')
+    : '<div class="item"><strong>Sem vendas hoje</strong><span>Registre vendas para visualizar o ranking.</span></div>';
 
   const payments = paymentBreakdownToday();
-  if (els.paymentSummary) {
-    els.paymentSummary.innerHTML = payments.length
-      ? payments.map(([method, total]) => `<div class="item"><strong>${esc(method)}</strong><span>${money(total)}</span></div>`).join('')
-      : '<div class="item"><strong>Sem pagamentos hoje</strong><span>Nenhuma venda registrada.</span></div>';
-  }
+  els.paymentSummary.innerHTML = payments.length
+    ? payments.map(([method, total]) => `<div class="item"><strong>${esc(method)}</strong><span>${money(total)}</span></div>`).join('')
+    : '<div class="item"><strong>Sem pagamentos hoje</strong><span>Nenhuma venda registrada.</span></div>';
 
   const activities = recentActivities();
-  if (els.recentActivity) {
-    els.recentActivity.innerHTML = activities.length
-      ? activities.map((item) => {
-          if (item.group === 'venda') return `<div class="item"><strong>Venda • ${esc(item.productName)}</strong><span>${esc(item.quantity)} x ${money(item.unitPrice)} = ${money(item.total)}</span><br /><span>${new Date(item.date).toLocaleString('pt-PT')}</span></div>`;
-          if (item.group === 'stock') return `<div class="item"><strong>Entrada de stock • ${esc(item.productName)}</strong><span>+${esc(item.quantity)} unidades</span><br /><span>${new Date(item.date).toLocaleString('pt-PT')}</span></div>`;
-          return `<div class="item"><strong>Caixa • ${item.kind === 'entrada' ? 'Entrada' : 'Saída'}</strong><span>${money(item.amount)}</span><br /><span>${new Date(item.date).toLocaleString('pt-PT')}</span></div>`;
-        }).join('')
-      : '<div class="item"><strong>Sem movimentações</strong><span>As últimas ações do sistema aparecerão aqui.</span></div>';
-  }
+  els.recentActivity.innerHTML = activities.length
+    ? activities.map((item) => {
+        if (item.group === 'venda') return `<div class="item"><strong>Venda • ${esc(item.productName)}</strong><span>${esc(item.quantity)} x ${money(item.unitPrice)} = ${money(item.total)}</span><br /><span>${new Date(item.date).toLocaleString('pt-PT')}</span></div>`;
+        if (item.group === 'stock') return `<div class="item"><strong>Entrada de stock • ${esc(item.productName)}</strong><span>+${esc(item.quantity)} unidades</span><br /><span>${new Date(item.date).toLocaleString('pt-PT')}</span></div>`;
+        return `<div class="item"><strong>Caixa • ${item.kind === 'entrada' ? 'Entrada' : 'Saída'}</strong><span>${money(item.amount)}</span><br /><span>${new Date(item.date).toLocaleString('pt-PT')}</span></div>`;
+      }).join('')
+    : '<div class="item"><strong>Sem movimentações</strong><span>As últimas ações do sistema aparecerão aqui.</span></div>';
 }
 
 function renderProductCards() {
-  if (!els.productCards) return;
   const term = els.productSearch.value.trim().toLowerCase();
   const products = state.products.filter((p) => {
     if (!term) return true;
@@ -648,7 +585,6 @@ function renderProductCards() {
 }
 
 function renderStock() {
-  if (!els.stockTable) return;
   els.stockTable.innerHTML = state.products.map((p) => `
     <tr>
       <td>${esc(p.name)}</td>
@@ -670,12 +606,11 @@ function normalizeHistory() {
     combined = combined.filter((item) => item.createdById === user.id);
   }
   combined.sort((a, b) => new Date(b.date) - new Date(a.date));
-  const filter = els.historyFilter?.value || 'todos';
+  const filter = els.historyFilter.value;
   return combined.filter((item) => filter === 'todos' || item.group === filter);
 }
 
 function renderHistory() {
-  if (!els.historyList) return;
   const records = normalizeHistory();
   els.historyList.innerHTML = records.length
     ? records.map((item) => {
@@ -691,7 +626,6 @@ function renderHistory() {
 }
 
 function renderCash() {
-  if (!els.cashSummary) return;
   const entradas = state.cashMovements.filter((m) => m.kind === 'entrada').reduce((s, m) => s + Number(m.amount || 0), 0);
   const saidas = state.cashMovements.filter((m) => m.kind === 'saida').reduce((s, m) => s + Number(m.amount || 0), 0);
   const vendas = state.history.filter((m) => m.type === 'venda').reduce((s, m) => s + Number(m.total || 0), 0);
@@ -704,7 +638,6 @@ function renderCash() {
 }
 
 function renderReport() {
-  if (!els.dailyReport) return;
   if (!can('relatorio')) {
     els.dailyReport.innerHTML = '<div class="item empty-state"><strong>Sem permissão</strong><span>Apenas administradores podem ver relatórios.</span></div>';
     return;
@@ -741,11 +674,8 @@ function renderReport() {
 }
 
 function renderDashboardFinanceiro() {
-  const el = document.getElementById('financeiroContent');
-  if (!el) return;
-
   if (!can('verFinanceiro')) {
-    el.innerHTML = `
+    els.financeiroContent.innerHTML = `
       <div class="item empty-state">
         <strong>Sem permissão</strong>
         <span>O resumo financeiro é visível apenas a administradores.</span>
@@ -780,13 +710,14 @@ function renderDashboardFinanceiro() {
     legend = '<span>Sem pagamentos hoje</span>';
   }
 
-  el.innerHTML = `
+  els.financeiroContent.innerHTML = `
     <div class="item">
       <div class="financeiro-item"><strong>Faturamento Hoje:</strong> <span>${money(todaySales.reduce((s, i) => s + Number(i.total || 0), 0))}</span></div>
       <div class="financeiro-item"><strong>Faturamento Total:</strong> <span>${money(allTimeVendas)}</span></div>
       <div class="financeiro-item"><strong>Entradas (Manuais):</strong> <span>${money(totalEntradas)}</span></div>
       <div class="financeiro-item"><strong>Saídas (Manuais):</strong> <span style="color:var(--danger)">${money(totalSaidas)}</span></div>
       <div class="financeiro-item" style="font-weight:700; border-top: 2px solid var(--primary); padding-top:10px;"><strong>Saldo Líquido:</strong> <span>${money(saldoLiquido)}</span></div>
+
       <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 10px;">
         <strong style="display:block; text-align:center;">Métodos de Pagamento (Hoje)</strong>
         <div class="pie-chart" style="background: conic-gradient(${pieGradient});"></div>
@@ -797,7 +728,6 @@ function renderDashboardFinanceiro() {
 }
 
 function renderUsers() {
-  if (!els.userList) return;
   const userSource = cloudMode() ? session.cloudUsers : state.users;
   els.userList.innerHTML = userSource.length
     ? userSource.map((user) => `
@@ -819,7 +749,6 @@ function renderUsers() {
 }
 
 function renderCloudPanel() {
-  if (!els.cloudPanel) return;
   const online = cloudMode();
   const current = getCurrentUser();
   const cfg = parseFirebaseConfig();
@@ -841,14 +770,6 @@ function renderCloudPanel() {
     <div class="item"><strong>Sessão</strong><span>${current ? esc(`${current.fullName} (${roleLabel(current.role)})`) : 'Nenhum usuário autenticado'}</span></div>
     <div class="item"><strong>Estado da sincronização</strong><span>${online ? (session.fbReady ? 'Sincronização ativa' : 'Inicializando conexão') : 'Dados guardados localmente'}</span></div>
     ${online ? diag : ''}
-    <div class="item">
-      <strong>Ferramentas</strong>
-      <span>Se estiveres com problemas de cache, clica abaixo:</span>
-      <div class="card-actions">
-        <button type="button" class="ghost" onclick="window.__saldarLimparCache()">🧹 Limpar cache e recarregar</button>
-        <button type="button" class="ghost" onclick="window.__saldarDebug()">🐛 Debug (ver consola)</button>
-      </div>
-    </div>
   `;
 }
 
@@ -869,22 +790,21 @@ function renderAll() {
 }
 
 // =====================================================================
-// Forms
+// Forms — sincronização
 // =====================================================================
 
 function syncPrice() {
-  const product = byId(els.saleProduct?.value);
-  if (product && els.salePrice) els.salePrice.value = product.price;
+  const product = byId(els.saleProduct.value);
+  if (product) els.salePrice.value = product.price;
 }
 
 function syncMin() {
-  const product = byId(els.stockProduct?.value);
-  if (product && els.stockMin) els.stockMin.value = product.minStock;
+  const product = byId(els.stockProduct.value);
+  if (product) els.stockMin.value = product.minStock;
 }
 
 function updateSaleHint() {
-  if (!els.saleStockHint) return;
-  const product = byId(els.saleProduct?.value);
+  const product = byId(els.saleProduct.value);
   if (!product) {
     els.saleStockHint.textContent = 'Selecione um produto para ver stock e preço.';
     return;
@@ -927,7 +847,7 @@ async function saveState() {
       cashMovements: state.cashMovements
     });
   } catch (error) {
-    _origConsoleError('[saveState]', error);
+    console.warn('Alteração guardada localmente. Sincronização com a nuvem falhou.', error);
   }
 }
 
@@ -954,7 +874,7 @@ async function ensureCloudProfile(user) {
       .filter(Boolean);
 
     if (adminEmails.length === 0) {
-      _origConsoleError('[SEGURANÇA] Nenhuma whitelist de admins. O primeiro registo será admin.');
+      console.warn('[SEGURANÇA] Nenhuma whitelist de admins. O primeiro registo será admin.');
       role = 'admin';
     } else if (adminEmails.includes(String(user.email || '').toLowerCase())) {
       role = 'admin';
@@ -991,41 +911,40 @@ async function loadCloudState() {
 }
 
 // =====================================================================
-// Firebase init
+// Firebase init (com diagnóstico detalhado)
 // =====================================================================
 
 async function initFirebase() {
-  _origConsoleError('[initFirebase] Início. cloudMode:', cloudMode());
+  console.log('[initFirebase] Início. cloudMode:', cloudMode());
 
   if (!cloudMode()) {
-    _origConsoleError('[initFirebase] cloudMode() = false. A ignorar.');
+    console.log('[initFirebase] cloudMode() = false. A ignorar.');
     return;
   }
 
   const cfg = parseFirebaseConfig();
-  _origConsoleError('[initFirebase] Config parseada:', cfg);
+  console.log('[initFirebase] Config parseada:', cfg);
 
   if (!cfg) {
     session.lastAuthError = { code: 'config/parse-error', message: 'JSON do Firebase inválido.' };
-    alert('❌ JSON do Firebase inválido.\n\nNão consegui fazer parse. Verifica o conteúdo em "Configurar modo online Firebase".');
-    toast('JSON do Firebase inválido.');
+    toast('JSON do Firebase inválido. Verifica a configuração.');
     return;
   }
 
   if (!cfg.apiKey || !cfg.projectId || !cfg.appId) {
     const faltam = ['apiKey', 'projectId', 'appId'].filter(k => !cfg[k]);
     session.lastAuthError = { code: 'config/missing-keys', message: 'Faltam: ' + faltam.join(', ') };
-    alert('❌ Configuração Firebase incompleta.\n\nFaltam: ' + faltam.join(', '));
-    toast(`Configuração incompleta: falta ${faltam.join(', ')}.`);
+    toast(`Configuração Firebase incompleta: falta ${faltam.join(', ')}.`);
+    console.error('[initFirebase] Faltam chaves:', faltam, 'Config recebida:', cfg);
     return;
   }
 
   try {
-    _origConsoleError('[initFirebase] A importar módulos...');
+    console.log('[initFirebase] A importar módulos do Firebase...');
     const appModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
     const authModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
     const firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
-    _origConsoleError('[initFirebase] Módulos importados.');
+    console.log('[initFirebase] Módulos importados.');
 
     const { initializeApp, getApps } = appModule;
     const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification } = authModule;
@@ -1037,20 +956,22 @@ async function initFirebase() {
     session.app = existing || initializeApp(cfg, 'saldar-servicos-v5');
     session.auth = getAuth(session.app);
     session.db = getFirestore(session.app);
-    _origConsoleError('[initFirebase] App/Auth/Firestore criados.');
+    console.log('[initFirebase] App/Auth/Firestore criados.');
 
     try {
       await enableIndexedDbPersistence(session.db);
-      _origConsoleError('[initFirebase] Persistência offline ativada.');
+      console.log('[initFirebase] Persistência offline ativada.');
     } catch (err) {
-      _origConsoleError('[initFirebase] Persistência erro:', err);
+      if (err.code === 'failed-precondition') console.warn('[initFirebase] Persistência falhou: múltiplas abas.');
+      else if (err.code === 'unimplemented') console.warn('[initFirebase] Persistência não suportada.');
+      else console.warn('[initFirebase] Persistência erro:', err);
     }
 
     session.fbReady = true;
 
     if (typeof session.unsubAuth === 'function') session.unsubAuth();
     session.unsubAuth = onAuthStateChanged(session.auth, async (user) => {
-      _origConsoleError('[onAuthStateChanged] User:', user ? user.email : '(null)');
+      console.log('[onAuthStateChanged] User:', user ? user.email : '(null)');
 
       if (!user) {
         session.currentUser = null;
@@ -1065,8 +986,7 @@ async function initFirebase() {
         const ageMs = Date.now() - new Date(user.metadata.creationTime).getTime();
         const isFresh = ageMs < 60 * 1000;
         if (!isFresh) {
-          alert('📧 Email não verificado.\n\nConfirma o email ' + user.email + ' antes de entrar.\n\nVerifica a caixa de entrada e clica no link de verificação.');
-          toast('Confirme o seu email antes de entrar.');
+          toast('Confirme o seu email antes de entrar. Verifique a caixa de entrada.');
           try { await session.api.signOut(session.auth); } catch {}
           session.currentUser = null;
           showApp(false);
@@ -1075,25 +995,25 @@ async function initFirebase() {
       }
 
       try {
-        session.currentUser = await ensureCloudProfile(user);
-        await fetchCloudUsers();
-        await loadCloudState();
-        showApp(true);
-        toast(`Sessão online iniciada para ${session.currentUser.fullName}.`);
-        session.pendingName = '';
-      } catch (err) {
-        _origConsoleError('[onAuthStateChanged] Erro ao carregar perfil/dados:', err);
+  const profile = await ensureCloudProfile(user);
+  session.currentUser = profile;             // ← define ANTES de renderizar
+  await fetchCloudUsers();
+  await loadCloudState();
+  showApp(true);                              // ← render com perfil correto
+  toast(`Sessão online iniciada para ${profile.fullName || profile.email}.`);
+  session.pendingName = '';
+} catch (err) {
+        console.error('[onAuthStateChanged] Erro ao carregar perfil/dados:', err);
         session.lastAuthError = { code: err.code || 'profile/error', message: err.message || String(err) };
-        alert('❌ Erro ao carregar perfil:\n\n' + (err.message || err.code || 'desconhecido'));
+        toast('Erro ao carregar perfil: ' + (err.message || err.code || 'desconhecido'));
       }
     });
 
-    _origConsoleError('[initFirebase] Concluído com sucesso.');
+    console.log('[initFirebase] Concluído com sucesso.');
   } catch (error) {
-    _origConsoleError('[initFirebase] Falha fatal:', error);
+    console.error('[initFirebase] Falha fatal:', error);
     session.lastAuthError = { code: error.code || 'init/error', message: error.message || String(error) };
-    alert('❌ Falha ao iniciar Firebase:\n\n' + (error.message || error.code || 'erro desconhecido'));
-    toast('Falha ao iniciar Firebase.');
+    toast('Falha ao iniciar Firebase: ' + (error.message || error.code || 'erro desconhecido'));
   }
 }
 
@@ -1170,7 +1090,7 @@ async function importBackupFile(file) {
 // Eventos — Config cloud
 // =====================================================================
 
-els.saveCloudConfigBtn?.addEventListener('click', async () => {
+els.saveCloudConfigBtn.addEventListener('click', async () => {
   settings.cloudEnabled = els.cloudEnabled.checked;
   settings.firebaseConfig = els.firebaseConfigInput.value.trim();
   settings.adminEmails = (els.adminEmailsInput?.value || '').trim();
@@ -1181,8 +1101,11 @@ els.saveCloudConfigBtn?.addEventListener('click', async () => {
   if (cloudMode()) {
     await initFirebase();
     showApp(false);
-    if (session.fbReady) toast('Modo online configurado. Faça login com email.');
-    else toast('Configuração salva, mas Firebase não inicializou. Vê a consola.', 20000);
+    if (session.fbReady) {
+      toast('Modo online configurado. Faça login com email.');
+    } else {
+      toast('Configuração salva, mas Firebase não inicializou. Vê a consola.', 6000);
+    }
   } else {
     session.currentUser = state.users.find((u) => u.id === state.currentUserId) || null;
     showApp(Boolean(session.currentUser));
@@ -1190,15 +1113,15 @@ els.saveCloudConfigBtn?.addEventListener('click', async () => {
   }
 });
 
-els.switchAuthModeBtn?.addEventListener('click', () => {
+els.switchAuthModeBtn.addEventListener('click', () => {
   switchAuthView(session.authView === 'login' ? 'register' : 'login');
 });
 
 // =====================================================================
-// LOGIN — ponto crítico
+// Login (com mensagens de erro detalhadas)
 // =====================================================================
 
-els.loginForm?.addEventListener('submit', async (e) => {
+els.loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const login = els.loginUsername.value.trim();
   const pass = els.loginPassword.value.trim();
@@ -1206,25 +1129,26 @@ els.loginForm?.addEventListener('submit', async (e) => {
   els.loginSubmitBtn.textContent = 'Aguarde...';
   els.loginSubmitBtn.disabled = true;
 
-  // ============================================================
-  // MODO ONLINE
-  // ============================================================
+  // ---------- MODO ONLINE ----------
   if (cloudMode()) {
+    // Diagnóstico: se o Firebase não estiver pronto, mostra o motivo exato
     if (!session.api || !session.auth) {
       const cfg = parseFirebaseConfig();
       let motivo = 'desconhecido';
+
       if (!cfg) motivo = 'JSON do Firebase inválido (não faz parse)';
       else if (!cfg.apiKey) motivo = 'falta "apiKey" no JSON';
       else if (!cfg.projectId) motivo = 'falta "projectId" no JSON';
       else if (!cfg.appId) motivo = 'falta "appId" no JSON';
-      else if (!session.fbReady) motivo = 'initFirebase não concluiu';
+      else if (!session.fbReady) motivo = 'initFirebase não concluiu (ver consola)';
       else motivo = 'api/auth ausente após init';
 
-      _origConsoleError('[Login] Firebase não pronto. Motivo:', motivo);
-      _origConsoleError('[Login] session.api:', session.api, 'auth:', session.auth, 'fbReady:', session.fbReady);
-      _origConsoleError('[Login] Config parseada:', cfg);
+      console.error('[Login] Firebase não pronto. Motivo:', motivo);
+      console.error('[Login] session.api:', session.api, 'auth:', session.auth, 'fbReady:', session.fbReady);
+      console.error('[Login] Config parseada:', cfg);
+      console.error('[Login] Config raw:', settings.firebaseConfig);
 
-      alert('❌ Firebase não está pronto.\n\nMotivo: ' + motivo + '\n\nAbre a consola (F12) para detalhes.\n\nTenta clicar em "Limpar cache e recarregar" no painel Nuvem.');
+      toast(`Falha: ${motivo}. Abre a consola (F12) para ver detalhes.`, 8000);
       els.loginSubmitBtn.textContent = session.authView === 'register' ? 'Criar conta online' : 'Entrar';
       els.loginSubmitBtn.disabled = false;
       return;
@@ -1245,10 +1169,10 @@ els.loginForm?.addEventListener('submit', async (e) => {
 
         try {
           await session.api.sendEmailVerification(userCredential.user);
-          alert('✅ Conta criada!\n\nFoi enviado um email de verificação para ' + login + '.\n\nVerifica a caixa de entrada (e o spam) e clica no link antes de tentar entrar.');
+          toast('Conta criada! Verifique seu e-mail para confirmar o cadastro.');
         } catch (verifyErr) {
-          _origConsoleError('[Login] Erro ao enviar verificação:', verifyErr);
-          alert('⚠️ Conta criada, mas o email de verificação não pôde ser enviado.\n\n' + (verifyErr.message || verifyErr.code));
+          console.warn('Erro ao enviar verificação:', verifyErr);
+          toast('Conta criada, mas não foi possível enviar o e-mail de verificação.');
         }
       } else {
         await session.api.signInWithEmailAndPassword(session.auth, login, pass);
@@ -1256,7 +1180,7 @@ els.loginForm?.addEventListener('submit', async (e) => {
       e.target.reset();
       switchAuthView('login');
     } catch (error) {
-      _origConsoleError('[Login] Erro completo:', error);
+      console.error('[Login] Erro completo:', error);
       session.lastAuthError = { code: error?.code || 'unknown', message: error?.message || String(error) };
 
       const mensagens = {
@@ -1271,24 +1195,16 @@ els.loginForm?.addEventListener('submit', async (e) => {
         'auth/weak-password': 'Palavra-passe demasiado fraca (mínimo 6 caracteres).',
         'auth/too-many-requests': 'Demasiadas tentativas. Tente novamente mais tarde.',
         'auth/network-request-failed': 'Sem ligação à internet. Verifica a rede.',
-        'auth/operation-not-allowed': 'Login por email/senha não está ativo no Firebase Console.\n\nVai a Authentication → Sign-in method → Email/Password → Ativar.',
-        'auth/configuration-not-found': 'Configuração do Firebase Auth incompleta.',
-        'auth/unauthorized-domain': 'Domínio não autorizado.\n\nAdiciona este domínio em:\nFirebase Console → Authentication → Settings → Authorized domains.',
-        'auth/internal-error': 'Erro interno do Firebase. Tenta novamente.',
+        'auth/operation-not-allowed': 'Login por email/senha não está ativo no Firebase Console.',
+        'auth/configuration-not-found': 'Configuração do Firebase Auth incompleta. Verifica o Console.',
+        'auth/unauthorized-domain': 'Domínio não autorizado no Firebase Auth. Adiciona-o em Authentication → Settings → Authorized domains.',
         'app/missing-name': 'Informe o nome completo.',
         'app/pass-mismatch': 'As palavras-passe não coincidem.',
         'app/invalid-email': 'Insira um e-mail válido.'
       };
 
       const msg = mensagens[error?.code] || error?.message || 'Falha no login online.';
-
-      // ALERT BLOQUEANTE com o código exato
-      alert('❌ ERRO DE LOGIN\n\n'
-        + 'Código: ' + (error?.code || 'sem código') + '\n\n'
-        + 'Mensagem: ' + (error?.message || 'sem mensagem') + '\n\n'
-        + '---\n\n' + msg);
-
-      toast(msg, 15000);
+      toast(msg, 6000);
     } finally {
       els.loginSubmitBtn.textContent = session.authView === 'register' ? 'Criar conta online' : 'Entrar';
       els.loginSubmitBtn.disabled = false;
@@ -1296,9 +1212,7 @@ els.loginForm?.addEventListener('submit', async (e) => {
     return;
   }
 
-  // ============================================================
-  // MODO LOCAL
-  // ============================================================
+  // ---------- MODO LOCAL ----------
   const candidate = state.users.find(
     (item) => item.username.toLowerCase() === login.toLowerCase() && item.active !== false
   );
@@ -1334,36 +1248,34 @@ els.loginForm?.addEventListener('submit', async (e) => {
 });
 
 // =====================================================================
-// Reset / verificação
+// Reset password / verificação
 // =====================================================================
 
-els.forgotPasswordLink?.addEventListener('click', async () => {
+els.forgotPasswordLink.addEventListener('click', async () => {
   const email = els.loginUsername.value.trim();
   if (!email) return toast('Por favor, insira o seu e-mail no campo acima.');
   try {
     await session.api.sendPasswordResetEmail(session.auth, email);
-    alert('✅ Email de redefinição enviado para ' + email + '.');
     toast('E-mail de redefinição de senha enviado com sucesso!');
   } catch (error) {
-    _origConsoleError(error);
-    alert('❌ Erro ao enviar:\n\n' + (error?.code || '') + '\n' + (error?.message || ''));
+    console.error(error);
+    toast('Erro ao enviar: ' + (error?.code || error?.message || 'desconhecido'));
   }
 });
 
-els.resendVerifyLink?.addEventListener('click', async () => {
+els.resendVerifyLink.addEventListener('click', async () => {
   const currentUser = session.auth.currentUser;
   if (!currentUser) return toast('Nenhum utilizador logado para reenviar verificação.');
   try {
     await session.api.sendEmailVerification(currentUser);
-    alert('✅ Email de verificação reenviado para ' + currentUser.email + '.');
     toast('E-mail de verificação reenviado.');
   } catch (error) {
-    _origConsoleError(error);
-    alert('❌ Erro ao reenviar:\n\n' + (error?.code || '') + '\n' + (error?.message || ''));
+    console.error(error);
+    toast('Erro ao reenviar: ' + (error?.code || error?.message || 'desconhecido'));
   }
 });
 
-els.logoutBtn?.addEventListener('click', async () => {
+els.logoutBtn.addEventListener('click', async () => {
   await logout();
   toast('Sessão terminada com sucesso.');
 });
@@ -1372,7 +1284,7 @@ els.logoutBtn?.addEventListener('click', async () => {
 // Produtos
 // =====================================================================
 
-els.productForm?.addEventListener('submit', async (e) => {
+els.productForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
 
@@ -1409,10 +1321,10 @@ els.productForm?.addEventListener('submit', async (e) => {
   toast('Produto criado com sucesso.');
 });
 
-els.cancelProductEditBtn?.addEventListener('click', () => resetProductForm());
-els.productSearch?.addEventListener('input', renderProductCards);
+els.cancelProductEditBtn.addEventListener('click', () => resetProductForm());
+els.productSearch.addEventListener('input', renderProductCards);
 
-els.productCards?.addEventListener('mousedown', async (e) => {
+els.productCards.addEventListener('mousedown', async (e) => {
   const button = e.target.closest('button[data-action]');
   if (!button) return;
   e.preventDefault();
@@ -1439,7 +1351,7 @@ els.productCards?.addEventListener('mousedown', async (e) => {
 // Stock
 // =====================================================================
 
-document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
+document.getElementById('stockForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
 
@@ -1474,7 +1386,7 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
 // Venda
 // =====================================================================
 
-document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
+document.getElementById('saleForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const product = byId(els.saleProduct.value);
   const qty = Number(els.saleQty.value);
@@ -1521,7 +1433,7 @@ document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
 // Caixa
 // =====================================================================
 
-document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
+document.getElementById('cashForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
 
@@ -1573,7 +1485,7 @@ function fillUserForm(id) {
   activate('usuarios');
 }
 
-els.userForm?.addEventListener('submit', async (e) => {
+els.userForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
 
@@ -1641,7 +1553,7 @@ els.userForm?.addEventListener('submit', async (e) => {
       renderAll();
       toast('Usuário criado com sucesso online!');
     } catch (err) {
-      _origConsoleError(err);
+      console.error(err);
       if (err.code === 'auth/email-already-in-use') toast('Este e-mail já está cadastrado.');
       else toast('Erro ao criar usuário: ' + (err.code || err.message));
     }
@@ -1668,9 +1580,9 @@ els.userForm?.addEventListener('submit', async (e) => {
   }
 });
 
-els.cancelUserEditBtn?.addEventListener('click', resetUserForm);
+els.cancelUserEditBtn.addEventListener('click', resetUserForm);
 
-els.userList?.addEventListener('click', async (e) => {
+els.userList.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
   if (!button || !isAdmin()) return;
 
@@ -1737,7 +1649,7 @@ els.userList?.addEventListener('click', async (e) => {
       try {
         await session.api.sendPasswordResetEmail(session.auth, user.email || user.username);
         toast('Email de recuperação de senha enviado para o utilizador.');
-      } catch { toast('Erro ao enviar email.'); }
+      } catch { toast('Erro ao enviar email. Verifique se o utilizador tem um email válido.'); }
     } else {
       const tempPass = prompt('Nova palavra-passe temporária para ' + user.fullName + ':', '1234');
       if (!tempPass) return;
@@ -1753,13 +1665,13 @@ els.userList?.addEventListener('click', async (e) => {
 // Backup
 // =====================================================================
 
-els.exportBackupBtn?.addEventListener('click', () => {
+els.exportBackupBtn.addEventListener('click', () => {
   if (!requireAdmin()) return;
   downloadBackup();
   toast('Backup exportado com sucesso.');
 });
 
-els.importBackupBtn?.addEventListener('click', async () => {
+els.importBackupBtn.addEventListener('click', async () => {
   if (!requireAdmin()) return;
   await importBackupFile(els.importBackupFile.files?.[0]);
 });
@@ -1768,13 +1680,13 @@ els.importBackupBtn?.addEventListener('click', async () => {
 // Eventos
 // =====================================================================
 
-els.saleProduct?.addEventListener('change', () => {
+els.saleProduct.addEventListener('change', () => {
   syncPrice();
   updateSaleHint();
 });
-els.stockProduct?.addEventListener('change', syncMin);
-els.historyFilter?.addEventListener('change', renderHistory);
-els.reportRange?.addEventListener('change', renderReport);
+els.stockProduct.addEventListener('change', syncMin);
+els.historyFilter.addEventListener('change', renderHistory);
+els.reportRange.addEventListener('change', renderReport);
 
 document.querySelectorAll('.tab').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1788,7 +1700,7 @@ document.querySelectorAll('.tab').forEach((btn) => {
 // PDF
 // =====================================================================
 
-els.exportPdfBtn?.addEventListener('click', () => {
+els.exportPdfBtn.addEventListener('click', () => {
   if (!requireAdmin()) return;
 
   const { jsPDF } = window.jspdf;
@@ -1885,8 +1797,8 @@ Obrigado pela preferência!
   modal.classList.remove('hidden');
 };
 
-els.closeModal?.addEventListener('click', () => els.receiptModal.classList.add('hidden'));
-els.receiptModal?.addEventListener('click', (e) => {
+els.closeModal.addEventListener('click', () => els.receiptModal.classList.add('hidden'));
+els.receiptModal.addEventListener('click', (e) => {
   if (e.target === els.receiptModal) els.receiptModal.classList.add('hidden');
 });
 
@@ -1898,19 +1810,19 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  els.installBtn?.classList.remove('hidden');
+  els.installBtn.classList.remove('hidden');
 });
 
-els.installBtn?.addEventListener('click', async () => {
+els.installBtn.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
-  els.installBtn?.classList.add('hidden');
+  els.installBtn.classList.add('hidden');
 });
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch((e) => _origConsoleError('[SW]', e));
+  navigator.serviceWorker.register('./sw.js');
 }
 
 // =====================================================================
@@ -1918,8 +1830,8 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços...');
-  _origConsoleError('[init] settings:', settings);
+  console.log('[init] A iniciar Saldar Serviços...');
+  console.log('[init] settings carregadas:', settings);
 
   els.cloudEnabled.checked = settings.cloudEnabled;
   els.firebaseConfigInput.value = settings.firebaseConfig || '';
@@ -1928,14 +1840,34 @@ if ('serviceWorker' in navigator) {
   switchAuthView('login');
 
   if (cloudMode()) {
-    _origConsoleError('[init] Modo online detetado. A inicializar Firebase...');
+    console.log('[init] Modo online detetado. A inicializar Firebase...');
     await initFirebase();
-    _origConsoleError('[init] Pós-initFirebase. fbReady:', session.fbReady);
+    console.log('[init] Pós-initFirebase. fbReady:', session.fbReady);
   } else {
-    _origConsoleError('[init] Modo local.');
+    console.log('[init] Modo local.');
     session.currentUser = state.users.find((u) => u.id === state.currentUserId) || null;
     showApp(Boolean(session.currentUser));
   }
 
-  _origConsoleError('[init] Pronto. Usa window.__saldarDebug() para diagnóstico.');
+  // Expor diagnóstico global
+  window.__saldarDebug = window.__saldarDebug || function() {
+    const cfg = parseFirebaseConfig();
+    const info = {
+      cloudMode: cloudMode(),
+      fbReady: session.fbReady,
+      hasApp: !!session.app,
+      hasAuth: !!session.auth,
+      hasDb: !!session.db,
+      hasApi: !!session.api,
+      lastAuthError: session.lastAuthError,
+      configValid: !!cfg,
+      configKeys: cfg ? Object.keys(cfg) : [],
+      missingKeys: cfg ? ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].filter(k => !cfg[k]) : ['TODAS (JSON inválido)'],
+      projectId: cfg?.projectId || null
+    };
+    console.table(info);
+    return info;
+  };
+
+  console.log('[init] Pronto. Digita window.__saldarDebug() na consola para diagnóstico.');
 })();
