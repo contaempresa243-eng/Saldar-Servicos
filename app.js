@@ -62,8 +62,8 @@ const isHash = (s) => typeof s === 'string' && /^[a-f0-9]{64}$/i.test(s);
 // SESSÃO — Timeout por inatividade (Patch 8)
 // =====================================================================
 // ⚠️ VALORES DE TESTE — alterar para produção quando confirmado
-const IDLE_TIMEOUT_MIN = 1;        // ⏱️ TESTE. Produção: 30
-const IDLE_WARNING_SEC = 20;       // ⚠️ TESTE. Produção: 60
+const IDLE_TIMEOUT_MIN = 30;        // ⏱️ TESTE. Produção: 30
+const IDLE_WARNING_SEC = 60;       // ⚠️ TESTE. Produção: 60
 const IDLE_CHECK_INTERVAL_MS = 5 * 1000;
 
 const idleState = {
