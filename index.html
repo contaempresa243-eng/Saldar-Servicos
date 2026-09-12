@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Saldar Serviços • Versão 8</title>
+  <title>Saldar Serviços • Versão 9</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
@@ -14,7 +14,7 @@
 <body>
   <section class="auth-shell" id="authShell">
     <div class="auth-card">
-      <p class="eyebrow">Versão 8 • Operação, backup e auditoria</p>
+      <p class="eyebrow">Versão 9 • Auditoria e sessão segura</p>
       <h1>Saldar Serviços</h1>
       <p class="auth-copy">Controle stock, vendas, caixa, usuários, relatórios e backup com modo local e base pronta para sincronização online.</p>
       <div class="mode-strip">
@@ -99,8 +99,8 @@
 
     <section class="hero-card">
       <div>
-        <h2>Versão 8 com auditoria integrada</h2>
-        <p>Agora com registo de todas as ações sensíveis, backup, gestão de usuários, filtros de produtos e relatórios por período.</p>
+        <h2>Versão 9 com sessão segura</h2>
+        <p>Agora com auditoria integrada, expiração de sessão por inatividade, backup, gestão de usuários, filtros de produtos e relatórios por período.</p>
       </div>
       <div class="hero-chip">AOA</div>
     </section>
@@ -409,9 +409,6 @@
         </div>
       </section>
 
-      <!-- ========================================================= -->
-      <!-- PATCH 7 — Novo separador Auditoria                         -->
-      <!-- ========================================================= -->
       <section class="tab-panel" id="auditoria">
         <div class="card">
           <div class="section-head">
@@ -436,12 +433,12 @@
               <option value="user-reset-pass">Reposições de senha</option>
               <option value="login">Logins</option>
               <option value="logout">Logouts</option>
+              <option value="session-timeout">Sessões expiradas</option>
             </select>
           </div>
           <div id="auditLogList" class="list"></div>
         </div>
       </section>
-      <!-- ========================================================= -->
 
       <section class="tab-panel" id="nuvem">
         <div class="card">
@@ -453,6 +450,27 @@
 
     <div id="toast" class="toast hidden"></div>
   </div>
+
+  <!-- ========================================================= -->
+  <!-- PATCH 8 — Modal de aviso de inatividade                    -->
+  <!-- ========================================================= -->
+  <div id="idleWarningModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 420px; text-align: center;">
+      <h2 style="color: var(--warning); margin-bottom: 12px;">⚠️ Sessão a expirar</h2>
+      <p style="font-size: 16px; margin-bottom: 16px;">
+        A sua sessão vai expirar em
+        <strong id="idleWarningCountdown">20</strong>
+        segundos por inatividade.
+      </p>
+      <p class="mini-text" style="margin-bottom: 20px;">
+        Clique no botão abaixo para continuar a trabalhar.
+      </p>
+      <button type="button" class="primary" onclick="window.__saldarContinueSession()" style="width: 100%;">
+        Continuar sessão
+      </button>
+    </div>
+  </div>
+  <!-- ========================================================= -->
 
   <div id="receiptModal" class="modal hidden">
     <div class="modal-content">

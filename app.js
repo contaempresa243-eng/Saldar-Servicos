@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v7 + Patch 7 completo)
+// SALDAR SERVIÇOS — app.js (v8 + Patch 8: sessão por inatividade)
 // =====================================================================
 
 // ============================================================
@@ -57,6 +57,21 @@ async function hashPassword(pass) {
 }
 
 const isHash = (s) => typeof s === 'string' && /^[a-f0-9]{64}$/i.test(s);
+
+// =====================================================================
+// SESSÃO — Timeout por inatividade (Patch 8)
+// =====================================================================
+// ⚠️ VALORES DE TESTE — alterar para produção quando confirmado
+const IDLE_TIMEOUT_MIN = 1;        // ⏱️ TESTE. Produção: 30
+const IDLE_WARNING_SEC = 20;       // ⚠️ TESTE. Produção: 60
+const IDLE_CHECK_INTERVAL_MS = 5 * 1000;
+
+const idleState = {
+  lastActivity: Date.now(),
+  checkTimer: null,
+  warningShown: false,
+  listenersAttached: false
+};
 
 // =====================================================================
 // Defaults
@@ -295,7 +310,9 @@ const els = {
   resendVerifyLink: document.getElementById('resendVerifyLink'),
   financeiroContent: document.getElementById('financeiroContent'),
   auditLogList: document.getElementById('auditLogList'),
-  auditLogFilter: document.getElementById('auditLogFilter')
+  auditLogFilter: document.getElementById('auditLogFilter'),
+  idleWarningModal: document.getElementById('idleWarningModal'),
+  idleWarningCountdown: document.getElementById('idleWarningCountdown')
 };
 
 function toast(message, duration = 8000) {
@@ -323,7 +340,9 @@ window.__saldarDebug = function() {
     currentRole: session.currentUser?.role || null,
     lastAuthError: session.lastAuthError,
     configValid: !!cfg,
-    projectId: cfg?.projectId || null
+    projectId: cfg?.projectId || null,
+    idleTimeout: IDLE_TIMEOUT_MIN + ' min',
+    idleWarning: IDLE_WARNING_SEC + ' s'
   };
   _origConsoleError('[__saldarDebug]', info);
   return info;
@@ -344,6 +363,11 @@ window.__saldarLimparCache = async function() {
   } catch (e) {
     alert('Erro ao limpar: ' + e.message);
   }
+};
+
+window.__saldarContinueSession = function() {
+  resetIdleActivity();
+  toast('Sessão renovada.');
 };
 
 // =====================================================================
@@ -414,8 +438,13 @@ function showApp(show) {
     const user = getCurrentUser();
     if (user) document.body.setAttribute('data-role', user.role);
     renderAll();
+    // Patch 8: iniciar timer de inatividade
+    setTimeout(() => hookIdleTimerToSession(), 500);
   } else {
     document.body.removeAttribute('data-role');
+    // Patch 8: parar timer
+    stopIdleTimer();
+    detachIdleListeners();
   }
 }
 
@@ -452,6 +481,114 @@ function require(feature, msg) {
 }
 
 // =====================================================================
+// SESSÃO — Sistema de timeout (Patch 8)
+// =====================================================================
+
+function startIdleTimer() {
+  stopIdleTimer();
+  idleState.lastActivity = Date.now();
+  idleState.warningShown = false;
+
+  idleState.checkTimer = setInterval(() => {
+    const inactiveSec = (Date.now() - idleState.lastActivity) / 1000;
+    const limitSec = IDLE_TIMEOUT_MIN * 60;
+    const warnAtSec = Math.max(0, limitSec - IDLE_WARNING_SEC);
+
+    if (inactiveSec < warnAtSec) {
+      idleState.warningShown = false;
+      return;
+    }
+
+    if (inactiveSec >= warnAtSec && inactiveSec < limitSec) {
+      const secondsLeft = Math.ceil(limitSec - inactiveSec);
+      if (!idleState.warningShown) {
+        idleState.warningShown = true;
+        showIdleWarning(secondsLeft);
+        _origConsoleError('[idle] Aviso mostrado. Segundos restantes:', secondsLeft);
+      } else {
+        if (els.idleWarningCountdown) els.idleWarningCountdown.textContent = secondsLeft;
+      }
+      return;
+    }
+
+    if (inactiveSec >= limitSec) {
+      _origConsoleError('[idle] Timeout atingido. A terminar sessão...');
+      handleIdleTimeout();
+    }
+  }, IDLE_CHECK_INTERVAL_MS);
+
+  attachIdleListeners();
+  _origConsoleError(`[idle] Timer iniciado (${IDLE_TIMEOUT_MIN} min / aviso ${IDLE_WARNING_SEC}s).`);
+}
+
+function stopIdleTimer() {
+  if (idleState.checkTimer) {
+    clearInterval(idleState.checkTimer);
+    idleState.checkTimer = null;
+  }
+  hideIdleWarning();
+  idleState.warningShown = false;
+  _origConsoleError('[idle] Timer parado.');
+}
+
+function resetIdleActivity() {
+  idleState.lastActivity = Date.now();
+  if (idleState.warningShown) {
+    idleState.warningShown = false;
+    hideIdleWarning();
+  }
+}
+
+function attachIdleListeners() {
+  if (idleState.listenersAttached) return;
+  idleState.listenersAttached = true;
+  const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  events.forEach((evt) => {
+    document.addEventListener(evt, resetIdleActivity, { passive: true });
+  });
+}
+
+function detachIdleListeners() {
+  if (!idleState.listenersAttached) return;
+  idleState.listenersAttached = false;
+  const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  events.forEach((evt) => {
+    document.removeEventListener(evt, resetIdleActivity);
+  });
+}
+
+function showIdleWarning(secondsLeft) {
+  if (!els.idleWarningModal) return;
+  els.idleWarningModal.classList.remove('hidden');
+  if (els.idleWarningCountdown) els.idleWarningCountdown.textContent = secondsLeft;
+}
+
+function hideIdleWarning() {
+  if (!els.idleWarningModal) return;
+  els.idleWarningModal.classList.add('hidden');
+}
+
+async function handleIdleTimeout() {
+  stopIdleTimer();
+  detachIdleListeners();
+  try {
+    await logAudit('session-timeout', {
+      minutes: IDLE_TIMEOUT_MIN,
+      mode: cloudMode() ? 'online' : 'local'
+    });
+  } catch {}
+  await logout();
+  hideIdleWarning();
+  toast(`Sessão expirada após ${IDLE_TIMEOUT_MIN} minutos de inatividade.`, 8000);
+}
+
+function hookIdleTimerToSession() {
+  const user = getCurrentUser();
+  if (user) startIdleTimer();
+  else { stopIdleTimer(); detachIdleListeners(); }
+}
+
+// =====================================================================
 // AUDITORIA — Patch 7
 // =====================================================================
 
@@ -471,13 +608,10 @@ async function logAudit(action, details = {}) {
 
   if (!Array.isArray(state.auditLog)) state.auditLog = [];
   state.auditLog.unshift(entry);
-  if (state.auditLog.length > 1000) {
-    state.auditLog = state.auditLog.slice(0, 1000);
-  }
+  if (state.auditLog.length > 1000) state.auditLog = state.auditLog.slice(0, 1000);
   saveLocal();
 
   if (!cloudMode() || !session.fbReady || !session.db || !session.api) return;
-
   try {
     const { doc, setDoc } = session.api;
     await setDoc(doc(session.db, 'auditLog', entry.id), {
@@ -495,7 +629,7 @@ async function logAudit(action, details = {}) {
 }
 
 // =====================================================================
-// Renders — todos blindados
+// Renders
 // =====================================================================
 
 function renderUserHeader() {
@@ -843,6 +977,7 @@ function renderCloudPanel() {
     <div class="item"><strong>Projeto</strong><span>${online ? esc(cloudProjectName()) : 'Não aplicado'}</span></div>
     <div class="item"><strong>Sessão</strong><span>${current ? esc(`${current.fullName} (${roleLabel(current.role)})`) : 'Nenhum usuário autenticado'}</span></div>
     <div class="item"><strong>Estado da sincronização</strong><span>${online ? (session.fbReady ? 'Sincronização ativa' : 'Inicializando conexão') : 'Dados guardados localmente'}</span></div>
+    <div class="item"><strong>Timeout de sessão</strong><span>${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s antes)</span></div>
     ${online ? diag : ''}
     <div class="item">
       <strong>Ferramentas</strong>
@@ -1079,7 +1214,6 @@ async function initFirebase() {
         showApp(true);
         toast(`Sessão online iniciada para ${profile.fullName || profile.email}.`);
         session.pendingName = '';
-        // 3.12a — Auditar login online
         await logAudit('login', { email: profile.email, mode: 'online' });
       } catch (err) {
         _origConsoleError('[onAuthStateChanged] Erro ao carregar perfil/dados:', err);
@@ -1099,7 +1233,6 @@ async function initFirebase() {
 // =====================================================================
 
 async function logout() {
-  // 3.12c — Auditar logout antes de limpar sessão
   try { await logAudit('logout', {}); } catch {}
 
   if (cloudMode() && session.api && session.auth) {
@@ -1121,7 +1254,7 @@ async function logout() {
 function downloadBackup() {
   const safeUsers = state.users.map(({ password, ...rest }) => rest);
   const payload = {
-    version: 7,
+    version: 8,
     exportedAt: now(),
     data: {
       products: state.products,
@@ -1303,7 +1436,6 @@ els.loginForm?.addEventListener('submit', async (e) => {
   e.target.reset();
   showApp(true);
   toast(`Bem-vindo, ${candidate.fullName}.`);
-  // 3.12b — Auditar login local
   await logAudit('login', { username: candidate.username, mode: 'local' });
 });
 
@@ -1368,7 +1500,6 @@ els.productForm?.addEventListener('submit', async (e) => {
     if (!product) return toast('Produto não encontrado.');
     Object.assign(product, payload);
     await saveState();
-    // 3.5 — Auditar edição de produto
     await logAudit('produto-editar', {
       productId: editingId,
       name: payload.name,
@@ -1382,7 +1513,6 @@ els.productForm?.addEventListener('submit', async (e) => {
 
   state.products.push({ id: uid(), ...payload });
   await saveState();
-  // 3.4 — Auditar criação de produto
   await logAudit('produto-criar', {
     name: payload.name,
     category: payload.category,
@@ -1415,7 +1545,6 @@ els.productCards?.addEventListener('mousedown', async (e) => {
     if (hasHistory) return toast('Não é possível remover produto com histórico.');
     state.products = state.products.filter((p) => p.id !== id);
     await saveState();
-    // 3.6 — Auditar remoção de produto
     await logAudit('produto-remover', { productId: id });
     renderAll();
     resetProductForm();
@@ -1446,7 +1575,6 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   });
 
   await saveState();
-  // 3.2 — Auditar entrada de stock
   await logAudit('stock', {
     productId: product.id,
     productName: product.name,
@@ -1490,7 +1618,6 @@ document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
   });
 
   await saveState();
-  // 3.1 — Auditar venda
   await logAudit('venda', {
     productId: product.id,
     productName: product.name,
@@ -1527,7 +1654,6 @@ document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
   });
 
   await saveState();
-  // 3.3 — Auditar movimento de caixa
   await logAudit('caixa', { kind, amount, note });
   e.target.reset();
   renderAll();
@@ -1600,7 +1726,6 @@ els.userForm?.addEventListener('submit', async (e) => {
       saveLocal();
     }
 
-    // 3.8 — Auditar edição de utilizador
     await logAudit('user-editar', {
       userId: editingId,
       fullName,
@@ -1625,7 +1750,6 @@ els.userForm?.addEventListener('submit', async (e) => {
       });
       await fetchCloudUsers();
 
-      // 3.7a — Auditar criação de utilizador online
       await logAudit('user-criar', {
         userId: uid2,
         fullName,
@@ -1654,7 +1778,6 @@ els.userForm?.addEventListener('submit', async (e) => {
     });
     saveLocal();
 
-    // 3.7b — Auditar criação de utilizador local
     await logAudit('user-criar', {
       fullName,
       email: emailOrUsername,
@@ -1694,7 +1817,6 @@ els.userList?.addEventListener('click', async (e) => {
       } catch { return toast('Erro ao atualizar utilizador na nuvem.'); }
     } else { saveLocal(); }
 
-    // 3.11 — Auditar toggle de utilizador
     await logAudit('user-toggle', { userId: id, active: user.active });
 
     renderAll();
@@ -1716,7 +1838,6 @@ els.userList?.addEventListener('click', async (e) => {
         await fetchCloudUsers();
         saveLocal();
 
-        // 3.9a — Auditar remoção online
         await logAudit('user-remover', { userId: id, mode: 'online' });
 
         renderAll();
@@ -1726,7 +1847,6 @@ els.userList?.addEventListener('click', async (e) => {
       state.users = state.users.filter(u => u.id !== id);
       saveLocal();
 
-      // 3.9b — Auditar remoção local
       await logAudit('user-remover', { userId: id, mode: 'local' });
 
       renderAll();
@@ -1743,7 +1863,6 @@ els.userList?.addEventListener('click', async (e) => {
     if (cloudMode()) {
       try {
         await session.api.sendPasswordResetEmail(session.auth, user.email || user.username);
-        // 3.10a — Auditar reset de senha online
         await logAudit('user-reset-pass', {
           userId: id,
           email: user.email || user.username,
@@ -1757,7 +1876,6 @@ els.userList?.addEventListener('click', async (e) => {
       user.password = await hashPassword(tempPass);
       saveLocal();
 
-      // 3.10b — Auditar reset de senha local
       await logAudit('user-reset-pass', {
         userId: id,
         email: user.username,
@@ -1931,6 +2049,7 @@ if ('serviceWorker' in navigator) {
 
 (async function init() {
   _origConsoleError('[init] A iniciar Saldar Serviços...');
+  _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
 
   if (els.cloudEnabled) els.cloudEnabled.checked = settings.cloudEnabled;
   if (els.firebaseConfigInput) els.firebaseConfigInput.value = settings.firebaseConfig || '';
