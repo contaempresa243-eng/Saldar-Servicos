@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v6 + patches 1-7 parcial)
+// SALDAR SERVIÇOS — app.js (v7 + Patch 7 completo)
 // =====================================================================
 
 // ============================================================
@@ -455,13 +455,6 @@ function require(feature, msg) {
 // AUDITORIA — Patch 7
 // =====================================================================
 
-/**
- * Regista uma ação no log de auditoria.
- * Guarda localmente em state.auditLog E envia para o Firestore (se online).
- *
- * @param {string} action   Ex.: 'venda', 'stock', 'caixa', 'produto-criar', etc.
- * @param {object} details  Detalhes adicionais (opcional).
- */
 async function logAudit(action, details = {}) {
   const user = getCurrentUser();
   if (!user) return;
@@ -476,7 +469,6 @@ async function logAudit(action, details = {}) {
     details: details || {}
   };
 
-  // 1. Guardar localmente (sempre)
   if (!Array.isArray(state.auditLog)) state.auditLog = [];
   state.auditLog.unshift(entry);
   if (state.auditLog.length > 1000) {
@@ -484,7 +476,6 @@ async function logAudit(action, details = {}) {
   }
   saveLocal();
 
-  // 2. Enviar para o Firestore (se online)
   if (!cloudMode() || !session.fbReady || !session.db || !session.api) return;
 
   try {
@@ -870,7 +861,6 @@ function renderAuditLog() {
     els.auditLogList.innerHTML = '<div class="item empty-state"><strong>Sem permissão</strong><span>Só administradores veem a auditoria.</span></div>';
     return;
   }
-
   const filter = els.auditLogFilter?.value || 'todos';
   const all = Array.isArray(state.auditLog) ? state.auditLog : [];
   const filtered = filter === 'todos' ? all : all.filter((e) => e.action === filter);
@@ -1089,6 +1079,8 @@ async function initFirebase() {
         showApp(true);
         toast(`Sessão online iniciada para ${profile.fullName || profile.email}.`);
         session.pendingName = '';
+        // 3.12a — Auditar login online
+        await logAudit('login', { email: profile.email, mode: 'online' });
       } catch (err) {
         _origConsoleError('[onAuthStateChanged] Erro ao carregar perfil/dados:', err);
         session.lastAuthError = { code: err.code || 'profile/error', message: err.message || String(err) };
@@ -1107,6 +1099,9 @@ async function initFirebase() {
 // =====================================================================
 
 async function logout() {
+  // 3.12c — Auditar logout antes de limpar sessão
+  try { await logAudit('logout', {}); } catch {}
+
   if (cloudMode() && session.api && session.auth) {
     await session.api.signOut(session.auth);
     session.currentUser = null;
@@ -1308,6 +1303,8 @@ els.loginForm?.addEventListener('submit', async (e) => {
   e.target.reset();
   showApp(true);
   toast(`Bem-vindo, ${candidate.fullName}.`);
+  // 3.12b — Auditar login local
+  await logAudit('login', { username: candidate.username, mode: 'local' });
 });
 
 // =====================================================================
@@ -1371,6 +1368,12 @@ els.productForm?.addEventListener('submit', async (e) => {
     if (!product) return toast('Produto não encontrado.');
     Object.assign(product, payload);
     await saveState();
+    // 3.5 — Auditar edição de produto
+    await logAudit('produto-editar', {
+      productId: editingId,
+      name: payload.name,
+      category: payload.category
+    });
     renderAll();
     resetProductForm();
     toast('Produto atualizado com sucesso.');
@@ -1379,6 +1382,14 @@ els.productForm?.addEventListener('submit', async (e) => {
 
   state.products.push({ id: uid(), ...payload });
   await saveState();
+  // 3.4 — Auditar criação de produto
+  await logAudit('produto-criar', {
+    name: payload.name,
+    category: payload.category,
+    stock: payload.stock,
+    minStock: payload.minStock,
+    price: payload.price
+  });
   renderAll();
   resetProductForm();
   toast('Produto criado com sucesso.');
@@ -1404,6 +1415,8 @@ els.productCards?.addEventListener('mousedown', async (e) => {
     if (hasHistory) return toast('Não é possível remover produto com histórico.');
     state.products = state.products.filter((p) => p.id !== id);
     await saveState();
+    // 3.6 — Auditar remoção de produto
+    await logAudit('produto-remover', { productId: id });
     renderAll();
     resetProductForm();
     toast('Produto removido com sucesso.');
@@ -1433,6 +1446,13 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   });
 
   await saveState();
+  // 3.2 — Auditar entrada de stock
+  await logAudit('stock', {
+    productId: product.id,
+    productName: product.name,
+    quantity: qty,
+    minStock
+  });
   e.target.reset();
   syncMin();
   renderAll();
@@ -1470,6 +1490,15 @@ document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
   });
 
   await saveState();
+  // 3.1 — Auditar venda
+  await logAudit('venda', {
+    productId: product.id,
+    productName: product.name,
+    quantity: qty,
+    unitPrice,
+    total: totalSale,
+    paymentMethod: els.saleMethod.value
+  });
   e.target.reset();
   syncPrice();
   updateSaleHint();
@@ -1489,13 +1518,17 @@ document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
   const user = getCurrentUser();
   if (amount <= 0 || !user) return;
 
+  const kind = els.cashType.value;
+  const note = els.cashNote.value.trim();
+
   state.cashMovements.push({
-    id: uid(), kind: els.cashType.value, amount,
-    note: els.cashNote.value.trim(),
+    id: uid(), kind, amount, note,
     createdById: user.id, createdByName: user.fullName, date: now()
   });
 
   await saveState();
+  // 3.3 — Auditar movimento de caixa
+  await logAudit('caixa', { kind, amount, note });
   e.target.reset();
   renderAll();
   toast('Movimento de caixa registrado.');
@@ -1567,6 +1600,13 @@ els.userForm?.addEventListener('submit', async (e) => {
       saveLocal();
     }
 
+    // 3.8 — Auditar edição de utilizador
+    await logAudit('user-editar', {
+      userId: editingId,
+      fullName,
+      role
+    });
+
     renderAll();
     resetUserForm();
     toast('Usuário atualizado com sucesso.');
@@ -1584,6 +1624,16 @@ els.userForm?.addEventListener('submit', async (e) => {
         fullName, email: emailOrUsername, role, active: true, createdAt: now()
       });
       await fetchCloudUsers();
+
+      // 3.7a — Auditar criação de utilizador online
+      await logAudit('user-criar', {
+        userId: uid2,
+        fullName,
+        email: emailOrUsername,
+        role,
+        mode: 'online'
+      });
+
       resetUserForm();
       renderAll();
       toast('Usuário criado com sucesso online!');
@@ -1603,6 +1653,15 @@ els.userForm?.addEventListener('submit', async (e) => {
       role, active: true, createdAt: now()
     });
     saveLocal();
+
+    // 3.7b — Auditar criação de utilizador local
+    await logAudit('user-criar', {
+      fullName,
+      email: emailOrUsername,
+      role,
+      mode: 'local'
+    });
+
     resetUserForm();
     renderAll();
     toast('Usuário criado com sucesso!');
@@ -1634,6 +1693,10 @@ els.userList?.addEventListener('click', async (e) => {
         await fetchCloudUsers();
       } catch { return toast('Erro ao atualizar utilizador na nuvem.'); }
     } else { saveLocal(); }
+
+    // 3.11 — Auditar toggle de utilizador
+    await logAudit('user-toggle', { userId: id, active: user.active });
+
     renderAll();
     toast(`Usuário ${user.active !== false ? 'ativado' : 'desativado'} com sucesso.`);
     return;
@@ -1652,12 +1715,20 @@ els.userList?.addEventListener('click', async (e) => {
         await deleteDoc(doc(session.db, 'users', id));
         await fetchCloudUsers();
         saveLocal();
+
+        // 3.9a — Auditar remoção online
+        await logAudit('user-remover', { userId: id, mode: 'online' });
+
         renderAll();
         toast('Usuário removido da nuvem.');
       } catch { return toast('Erro ao remover da nuvem.'); }
     } else {
       state.users = state.users.filter(u => u.id !== id);
       saveLocal();
+
+      // 3.9b — Auditar remoção local
+      await logAudit('user-remover', { userId: id, mode: 'local' });
+
       renderAll();
       toast('Usuário removido com sucesso.');
     }
@@ -1672,6 +1743,12 @@ els.userList?.addEventListener('click', async (e) => {
     if (cloudMode()) {
       try {
         await session.api.sendPasswordResetEmail(session.auth, user.email || user.username);
+        // 3.10a — Auditar reset de senha online
+        await logAudit('user-reset-pass', {
+          userId: id,
+          email: user.email || user.username,
+          mode: 'email'
+        });
         toast('Email de recuperação enviado.');
       } catch { toast('Erro ao enviar email.'); }
     } else {
@@ -1679,6 +1756,14 @@ els.userList?.addEventListener('click', async (e) => {
       if (!tempPass) return;
       user.password = await hashPassword(tempPass);
       saveLocal();
+
+      // 3.10b — Auditar reset de senha local
+      await logAudit('user-reset-pass', {
+        userId: id,
+        email: user.username,
+        mode: 'local'
+      });
+
       renderAll();
       toast('Palavra-passe local redefinida.');
     }
