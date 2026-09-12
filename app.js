@@ -1,9 +1,9 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v6 + patches 1-6 + renders blindados)
+// SALDAR SERVIÇOS — app.js (v6 + patches 1-7 parcial)
 // =====================================================================
 
 // ============================================================
-// 🔍 DIAGNÓSTICO TEMPORÁRIO — REMOVER DEPOIS DE RESOLVER
+// 🔍 DIAGNÓSTICO TEMPORÁRIO — REMOVER NO FIM
 // ============================================================
 window.addEventListener('error', (e) => {
   try { alert('❌ ERRO GLOBAL:\n\n' + (e.error?.stack || e.message || String(e))); } catch {}
@@ -83,7 +83,8 @@ function defaults() {
       { id: uid(), fullName: 'Administrador Geral', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt: now() },
       { id: uid(), fullName: 'Operador de Balcão', username: 'operador', password: '1234', role: 'operador', active: true, createdAt: now() }
     ],
-    currentUserId: null
+    currentUserId: null,
+    auditLog: []
   };
 }
 
@@ -94,7 +95,8 @@ function normalize(raw) {
     history: Array.isArray(raw?.history) ? raw.history : [],
     cashMovements: Array.isArray(raw?.cashMovements) ? raw.cashMovements : [],
     users: Array.isArray(raw?.users) && raw.users.length ? raw.users : base.users,
-    currentUserId: raw?.currentUserId || null
+    currentUserId: raw?.currentUserId || null,
+    auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : []
   };
 }
 
@@ -175,13 +177,13 @@ const PERMISSIONS = {
     admin: true, dashboard: true, verFinanceiro: true, verSaldoCaixa: true,
     produtos: true, stock: true, venda: true, vendaDesconto: true, caixa: true,
     historico: true, historicoTodos: true, relatorio: true, usuarios: true,
-    backup: true, nuvem: true
+    backup: true, nuvem: true, auditoria: true
   },
   operador: {
     admin: false, dashboard: true, verFinanceiro: false, verSaldoCaixa: false,
     produtos: false, stock: false, venda: true, vendaDesconto: false, caixa: false,
     historico: true, historicoTodos: false, relatorio: false, usuarios: false,
-    backup: false, nuvem: true
+    backup: false, nuvem: true, auditoria: false
   }
 };
 
@@ -291,7 +293,9 @@ const els = {
   closeModal: document.querySelector('.close-modal'),
   forgotPasswordLink: document.getElementById('forgotPasswordLink'),
   resendVerifyLink: document.getElementById('resendVerifyLink'),
-  financeiroContent: document.getElementById('financeiroContent')
+  financeiroContent: document.getElementById('financeiroContent'),
+  auditLogList: document.getElementById('auditLogList'),
+  auditLogFilter: document.getElementById('auditLogFilter')
 };
 
 function toast(message, duration = 8000) {
@@ -448,7 +452,59 @@ function require(feature, msg) {
 }
 
 // =====================================================================
-// Renders — todos blindados com if (!el) return
+// AUDITORIA — Patch 7
+// =====================================================================
+
+/**
+ * Regista uma ação no log de auditoria.
+ * Guarda localmente em state.auditLog E envia para o Firestore (se online).
+ *
+ * @param {string} action   Ex.: 'venda', 'stock', 'caixa', 'produto-criar', etc.
+ * @param {object} details  Detalhes adicionais (opcional).
+ */
+async function logAudit(action, details = {}) {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  const entry = {
+    id: uid(),
+    action: String(action || 'desconhecida'),
+    userId: String(user.id || ''),
+    userName: String(user.fullName || user.email || 'Desconhecido'),
+    userRole: String(user.role || 'operador'),
+    date: now(),
+    details: details || {}
+  };
+
+  // 1. Guardar localmente (sempre)
+  if (!Array.isArray(state.auditLog)) state.auditLog = [];
+  state.auditLog.unshift(entry);
+  if (state.auditLog.length > 1000) {
+    state.auditLog = state.auditLog.slice(0, 1000);
+  }
+  saveLocal();
+
+  // 2. Enviar para o Firestore (se online)
+  if (!cloudMode() || !session.fbReady || !session.db || !session.api) return;
+
+  try {
+    const { doc, setDoc } = session.api;
+    await setDoc(doc(session.db, 'auditLog', entry.id), {
+      action: entry.action,
+      userId: entry.userId,
+      userName: entry.userName,
+      userRole: entry.userRole,
+      date: entry.date,
+      details: entry.details
+    });
+    _origConsoleError('[logAudit] ✅', action);
+  } catch (err) {
+    _origConsoleError('[logAudit] ❌ Falha:', err?.code || err?.message);
+  }
+}
+
+// =====================================================================
+// Renders — todos blindados
 // =====================================================================
 
 function renderUserHeader() {
@@ -523,7 +579,6 @@ function recentActivities() {
 
 function renderStats() {
   if (!els.statsGrid) return;
-
   const totalUnits = state.products.reduce((sum, p) => sum + Number(p.stock || 0), 0);
   const lowCount = state.products.filter((p) => Number(p.stock || 0) <= Number(p.minStock || 0)).length;
   const todayRevenue = getTodaySales().reduce((sum, item) => sum + Number(item.total || 0), 0);
@@ -537,10 +592,7 @@ function renderStats() {
     { label: 'Usuários ativos', value: activeUsers },
     { label: 'Mais vendido hoje', value: topProduct }
   ];
-
-  if (can('verSaldoCaixa')) {
-    stats.splice(3, 0, { label: 'Caixa acumulado', value: money(getCashBalance()) });
-  }
+  if (can('verSaldoCaixa')) stats.splice(3, 0, { label: 'Caixa acumulado', value: money(getCashBalance()) });
 
   els.statsGrid.innerHTML = stats
     .map((s) => `<div class="stat"><small>${esc(s.label)}</small><strong>${esc(s.value)}</strong></div>`)
@@ -553,28 +605,24 @@ function renderDashboard() {
       ? state.products.map((p) => `<div class="item"><strong>${esc(p.name)}</strong><span>${esc(p.category)}</span><br /><span>${p.category === 'RL' ? money(p.stock) + ' (saldo)' : p.stock + ' un.'} • ${p.category === 'RL' ? 'Preço variável' : money(p.price)}</span></div>`).join('')
       : '<div class="item empty-state">Sem produtos cadastrados.</div>';
   }
-
   if (els.lowStockList) {
     const lows = state.products.filter((p) => Number(p.stock || 0) <= Number(p.minStock || 0));
     els.lowStockList.innerHTML = lows.length
       ? lows.map((p) => `<div class="item"><strong>${esc(p.name)}</strong><span class="badge low">Stock baixo: ${p.category === 'RL' ? money(p.stock) : p.stock}</span></div>`).join('')
       : '<div class="item"><strong>Sem alertas</strong><span>Todos os produtos estão acima do mínimo.</span></div>';
   }
-
   if (els.topSalesList) {
     const tops = topSalesToday();
     els.topSalesList.innerHTML = tops.length
       ? tops.map(([name, qty]) => `<div class="item"><strong>${esc(name)}</strong><span>${qty} ${qty === 1 ? 'unidade' : 'unidades'} vendidas hoje</span></div>`).join('')
       : '<div class="item"><strong>Sem vendas hoje</strong><span>Registre vendas para visualizar o ranking.</span></div>';
   }
-
   if (els.paymentSummary) {
     const payments = paymentBreakdownToday();
     els.paymentSummary.innerHTML = payments.length
       ? payments.map(([method, total]) => `<div class="item"><strong>${esc(method)}</strong><span>${money(total)}</span></div>`).join('')
       : '<div class="item"><strong>Sem pagamentos hoje</strong><span>Nenhuma venda registrada.</span></div>';
   }
-
   if (els.recentActivity) {
     const activities = recentActivities();
     els.recentActivity.innerHTML = activities.length
@@ -594,10 +642,8 @@ function renderProductCards() {
     if (!term) return true;
     return p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term);
   });
-
   els.productCards.classList.remove('compact');
   els.productCards.classList.add('carousel-slider');
-
   els.productCards.innerHTML = products.length
     ? products.map((p) => `
       <div class="item">
@@ -681,7 +727,6 @@ function renderReport() {
     els.dailyReport.innerHTML = '<div class="item empty-state"><strong>Sem permissão</strong><span>Apenas administradores podem ver relatórios.</span></div>';
     return;
   }
-
   const range = els.reportRange?.value || 'today';
   const sales = salesForRange(range);
   const cashMovements = cashForRange(range);
@@ -714,7 +759,6 @@ function renderReport() {
 
 function renderDashboardFinanceiro() {
   if (!els.financeiroContent) return;
-
   if (!can('verFinanceiro')) {
     els.financeiroContent.innerHTML = `
       <div class="item empty-state">
@@ -723,7 +767,6 @@ function renderDashboardFinanceiro() {
       </div>`;
     return;
   }
-
   const todaySales = getTodaySales();
   const allTimeVendas = state.history.filter((item) => item.type === 'venda').reduce((s, i) => s + Number(i.total || 0), 0);
   const totalEntradas = state.cashMovements.filter((m) => m.kind === 'entrada').reduce((s, m) => s + Number(m.amount || 0), 0);
@@ -736,7 +779,6 @@ function renderDashboardFinanceiro() {
   let legend = '';
   let acc = 0;
   const colors = ['var(--primary)', '#f59e0b', '#3b82f6', '#8b5cf6'];
-
   if (totalPago > 0) {
     payments.forEach(([method, value], index) => {
       const percent = (value / totalPago) * 100;
@@ -750,7 +792,6 @@ function renderDashboardFinanceiro() {
     pieGradient = '#d1d5db 0% 100%';
     legend = '<span>Sem pagamentos hoje</span>';
   }
-
   els.financeiroContent.innerHTML = `
     <div class="item">
       <div class="financeiro-item"><strong>Faturamento Hoje:</strong> <span>${money(todaySales.reduce((s, i) => s + Number(i.total || 0), 0))}</span></div>
@@ -823,6 +864,31 @@ function renderCloudPanel() {
   `;
 }
 
+function renderAuditLog() {
+  if (!els.auditLogList) return;
+  if (!can('auditoria')) {
+    els.auditLogList.innerHTML = '<div class="item empty-state"><strong>Sem permissão</strong><span>Só administradores veem a auditoria.</span></div>';
+    return;
+  }
+
+  const filter = els.auditLogFilter?.value || 'todos';
+  const all = Array.isArray(state.auditLog) ? state.auditLog : [];
+  const filtered = filter === 'todos' ? all : all.filter((e) => e.action === filter);
+
+  els.auditLogList.innerHTML = filtered.length
+    ? filtered.slice(0, 200).map((entry) => `
+      <div class="item">
+        <div class="product-name-row">
+          <strong>${esc(entry.action)}</strong>
+          <span class="badge info">${esc(entry.userRole || 'operador')}</span>
+        </div>
+        <span>${esc(entry.userName)} • ${new Date(entry.date).toLocaleString('pt-PT')}</span>
+        ${entry.details && Object.keys(entry.details).length ? `<div class="meta-row"><span class="badge warning">${esc(JSON.stringify(entry.details).slice(0, 120))}</span></div>` : ''}
+      </div>
+    `).join('')
+    : '<div class="item empty-state"><strong>Sem registos</strong><span>Nenhuma ação de auditoria encontrada.</span></div>';
+}
+
 function renderAll() {
   try { renderUserHeader(); } catch (e) { _origConsoleError('[renderUserHeader]', e); }
   try { applyPermissions(); } catch (e) { _origConsoleError('[applyPermissions]', e); }
@@ -837,6 +903,7 @@ function renderAll() {
   try { renderUsers(); } catch (e) { _origConsoleError('[renderUsers]', e); }
   try { renderCloudPanel(); } catch (e) { _origConsoleError('[renderCloudPanel]', e); }
   try { renderDashboardFinanceiro(); } catch (e) { _origConsoleError('[renderDashboardFinanceiro]', e); }
+  try { renderAuditLog(); } catch (e) { _origConsoleError('[renderAuditLog]', e); }
 }
 
 // =====================================================================
@@ -917,10 +984,8 @@ async function ensureCloudProfile(user) {
 
   const usersSnap = await getDocs(collection(session.db, 'users'));
   let role = 'operador';
-
   if (usersSnap.empty) {
-    const adminEmails = String(settings.adminEmails || '')
-      .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+    const adminEmails = String(settings.adminEmails || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
     if (adminEmails.length === 0) {
       _origConsoleError('[SEGURANÇA] Nenhuma whitelist de admins. O primeiro registo será admin.');
       role = 'admin';
@@ -930,13 +995,10 @@ async function ensureCloudProfile(user) {
       toast('O sistema já tem administrador. A sua conta será criada como operador.');
     }
   }
-
   const profile = {
     fullName: session.pendingName || user.email || 'Usuário online',
     email: user.email,
-    role,
-    active: true,
-    createdAt: now()
+    role, active: true, createdAt: now()
   };
   await setDoc(profileRef, profile);
   return { id: user.uid, ...profile };
@@ -1006,7 +1068,6 @@ async function initFirebase() {
         showApp(false);
         return;
       }
-
       session.lastAuthError = null;
 
       if (user.email && user.emailVerified === false && user.providerData?.[0]?.providerId === 'password') {
@@ -1022,10 +1083,10 @@ async function initFirebase() {
 
       try {
         const profile = await ensureCloudProfile(user);
-        session.currentUser = profile;     // ← atribuir ANTES de renderizar
+        session.currentUser = profile;
         await fetchCloudUsers();
         await loadCloudState();
-        showApp(true);                      // ← render já com o perfil correto
+        showApp(true);
         toast(`Sessão online iniciada para ${profile.fullName || profile.email}.`);
         session.pendingName = '';
       } catch (err) {
@@ -1065,13 +1126,14 @@ async function logout() {
 function downloadBackup() {
   const safeUsers = state.users.map(({ password, ...rest }) => rest);
   const payload = {
-    version: 6,
+    version: 7,
     exportedAt: now(),
     data: {
       products: state.products,
       history: state.history,
       cashMovements: state.cashMovements,
-      users: safeUsers
+      users: safeUsers,
+      auditLog: state.auditLog || []
     }
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1094,7 +1156,8 @@ async function importBackupFile(file) {
     history: source.history,
     cashMovements: source.cashMovements,
     users: source.users,
-    currentUserId: state.currentUserId
+    currentUserId: state.currentUserId,
+    auditLog: source.auditLog
   });
   state.users = state.users.map((u) => ({ ...u, password: u.password || '' }));
   saveLocal();
@@ -1143,7 +1206,6 @@ els.loginForm?.addEventListener('submit', async (e) => {
   els.loginSubmitBtn.textContent = 'Aguarde...';
   els.loginSubmitBtn.disabled = true;
 
-  // ---------- MODO ONLINE ----------
   if (cloudMode()) {
     if (!session.api || !session.auth) {
       const cfg = parseFirebaseConfig();
@@ -1154,7 +1216,6 @@ els.loginForm?.addEventListener('submit', async (e) => {
       else if (!cfg.appId) motivo = 'falta "appId" no JSON';
       else if (!session.fbReady) motivo = 'initFirebase não concluiu';
       else motivo = 'api/auth ausente após init';
-
       _origConsoleError('[Login] Firebase não pronto. Motivo:', motivo);
       alert('❌ Firebase não está pronto.\n\nMotivo: ' + motivo);
       els.loginSubmitBtn.textContent = session.authView === 'register' ? 'Criar conta online' : 'Entrar';
@@ -1168,7 +1229,6 @@ els.loginForm?.addEventListener('submit', async (e) => {
         const confirm = els.confirmPassword.value.trim();
         if (!full) throw { code: 'app/missing-name', message: 'Informe o nome completo.' };
         if (pass !== confirm) throw { code: 'app/pass-mismatch', message: 'As palavras-passe não coincidem.' };
-
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(login)) throw { code: 'app/invalid-email', message: 'Insira um e-mail válido.' };
 
@@ -1190,8 +1250,8 @@ els.loginForm?.addEventListener('submit', async (e) => {
       session.lastAuthError = { code: error?.code || 'unknown', message: error?.message || String(error) };
 
       const mensagens = {
-        'auth/invalid-api-key': 'API Key inválida. Verifica o JSON do Firebase.',
-        'auth/api-key-not-valid': 'API Key inválida. Verifica o JSON do Firebase.',
+        'auth/invalid-api-key': 'API Key inválida.',
+        'auth/api-key-not-valid': 'API Key inválida.',
         'auth/invalid-email': 'Formato de e-mail inválido.',
         'auth/user-disabled': 'Esta conta foi desativada.',
         'auth/user-not-found': 'Utilizador não encontrado.',
@@ -1199,7 +1259,7 @@ els.loginForm?.addEventListener('submit', async (e) => {
         'auth/invalid-credential': 'E-mail ou palavra-passe incorretos.',
         'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
         'auth/weak-password': 'Palavra-passe fraca (mínimo 6 caracteres).',
-        'auth/too-many-requests': 'Demasiadas tentativas. Tente mais tarde.',
+        'auth/too-many-requests': 'Demasiadas tentativas.',
         'auth/network-request-failed': 'Sem ligação à internet.',
         'auth/operation-not-allowed': 'Login por email/senha não está ativo no Firebase Console.',
         'auth/unauthorized-domain': 'Domínio não autorizado. Adiciona em Authentication → Settings → Authorized domains.',
@@ -1217,10 +1277,8 @@ els.loginForm?.addEventListener('submit', async (e) => {
     return;
   }
 
-  // ---------- MODO LOCAL ----------
-  const candidate = state.users.find(
-    (item) => item.username.toLowerCase() === login.toLowerCase() && item.active !== false
-  );
+  // MODO LOCAL
+  const candidate = state.users.find((item) => item.username.toLowerCase() === login.toLowerCase() && item.active !== false);
 
   if (!candidate || !candidate.password) {
     toast('Usuário ou palavra-passe inválidos.');
@@ -1369,15 +1427,9 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   product.stock += qty;
   product.minStock = minStock;
   state.history.push({
-    id: uid(),
-    type: 'stock',
-    productId: product.id,
-    productName: product.name,
-    quantity: qty,
-    note: els.stockNote.value.trim(),
-    createdById: user.id,
-    createdByName: user.fullName,
-    date: now()
+    id: uid(), type: 'stock', productId: product.id, productName: product.name,
+    quantity: qty, note: els.stockNote.value.trim(),
+    createdById: user.id, createdByName: user.fullName, date: now()
   });
 
   await saveState();
@@ -1399,7 +1451,6 @@ document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
   const user = getCurrentUser();
 
   if (!product || qty <= 0 || unitPrice < 0 || !user) return;
-
   if (product.category === 'CF' && !can('vendaDesconto') && unitPrice < product.price) {
     return toast(`Sem permissão para desconto. Preço mínimo: ${money(product.price)}.`);
   }
@@ -1412,18 +1463,10 @@ document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
 
   const saleId = uid();
   state.history.push({
-    id: saleId,
-    type: 'venda',
-    productId: product.id,
-    productName: product.name,
-    quantity: qty,
-    unitPrice,
-    total: totalSale,
-    paymentMethod: els.saleMethod.value,
-    note: els.saleNote.value.trim(),
-    createdById: user.id,
-    createdByName: user.fullName,
-    date: now()
+    id: saleId, type: 'venda', productId: product.id, productName: product.name,
+    quantity: qty, unitPrice, total: totalSale,
+    paymentMethod: els.saleMethod.value, note: els.saleNote.value.trim(),
+    createdById: user.id, createdByName: user.fullName, date: now()
   });
 
   await saveState();
@@ -1447,13 +1490,9 @@ document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
   if (amount <= 0 || !user) return;
 
   state.cashMovements.push({
-    id: uid(),
-    kind: els.cashType.value,
-    amount,
+    id: uid(), kind: els.cashType.value, amount,
     note: els.cashNote.value.trim(),
-    createdById: user.id,
-    createdByName: user.fullName,
-    date: now()
+    createdById: user.id, createdByName: user.fullName, date: now()
   });
 
   await saveState();
@@ -1501,7 +1540,6 @@ els.userForm?.addEventListener('submit', async (e) => {
   const password = els.userPassword.value.trim();
 
   if (!fullName || !emailOrUsername) return toast('Preencha o nome e o email/usuário.');
-
   if (cloudMode()) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailOrUsername)) return toast('Insira um e-mail válido.');
@@ -1584,13 +1622,11 @@ els.userList?.addEventListener('click', async (e) => {
     const userSource = cloudMode() ? session.cloudUsers : state.users;
     const user = userSource.find(u => u.id === id);
     if (!user) return;
-
     const current = getCurrentUser();
     if (current?.id === user.id && user.active !== false) return toast('Não pode desativar o seu próprio utilizador.');
     if (user.role === 'admin' && user.active !== false && userSource.filter(u => u.role === 'admin' && u.active !== false).length <= 1) return toast('Tem de existir pelo menos um administrador ativo.');
 
     user.active = !(user.active !== false);
-
     if (cloudMode()) {
       try {
         const { doc, setDoc } = session.api;
@@ -1665,13 +1701,14 @@ els.importBackupBtn?.addEventListener('click', async () => {
 });
 
 // =====================================================================
-// Eventos diversos
+// Eventos
 // =====================================================================
 
 els.saleProduct?.addEventListener('change', () => { syncPrice(); updateSaleHint(); });
 els.stockProduct?.addEventListener('change', syncMin);
 els.historyFilter?.addEventListener('change', renderHistory);
 els.reportRange?.addEventListener('change', renderReport);
+els.auditLogFilter?.addEventListener('change', renderAuditLog);
 
 document.querySelectorAll('.tab').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1687,7 +1724,6 @@ document.querySelectorAll('.tab').forEach((btn) => {
 
 els.exportPdfBtn?.addEventListener('click', () => {
   if (!requireAdmin()) return;
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -1706,22 +1742,17 @@ els.exportPdfBtn?.addEventListener('click', () => {
   doc.text(`Faturamento: ${money(revenue)}`, 14, 51);
 
   if (sales.length > 0) {
-    const tableBody = sales.map(item => [
-      item.productName, item.quantity, money(item.unitPrice), money(item.total),
-      item.paymentMethod, new Date(item.date).toLocaleString('pt-PT')
-    ]);
+    const tableBody = sales.map(item => [item.productName, item.quantity, money(item.unitPrice), money(item.total), item.paymentMethod, new Date(item.date).toLocaleString('pt-PT')]);
     doc.autoTable({
       startY: 58,
       head: [['Produto', 'Qtd', 'P. Unit.', 'Total', 'Método', 'Data']],
-      body: tableBody,
-      theme: 'striped',
+      body: tableBody, theme: 'striped',
       headStyles: { fillColor: '#0f766e' },
       styles: { fontSize: 9, cellPadding: 2 }
     });
   } else {
     doc.text('Nenhuma venda no período.', 14, 58);
   }
-
   doc.save(`relatorio_${today()}.pdf`);
   toast('Relatório PDF exportado com sucesso!');
 });
