@@ -388,9 +388,11 @@
         <div class="card"><h3>Status da nuvem</h3><div id="cloudPanel" class="list"></div></div>
       </section>
     </main>
-
-    <div id="toast" class="toast hidden"></div>
   </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAIS (fora do appShell)                                   -->
+  <!-- ========================================================= -->
 
   <!-- Modal de aviso de inatividade -->
   <div id="idleWarningModal" class="modal hidden">
@@ -411,6 +413,9 @@
       <div id="receiptContent"></div>
     </div>
   </div>
+
+  <!-- Toast GLOBAL (fora do appShell para aparecer também no login) -->
+  <div id="toast" class="toast hidden"></div>
 
   <script type="module" src="app.js"></script>
 </body>
