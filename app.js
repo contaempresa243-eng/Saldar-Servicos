@@ -488,9 +488,39 @@ function applyPermissions() {
   document.querySelectorAll('[data-perm]').forEach((el) => {
     el.classList.toggle('hidden', !can(el.dataset.perm));
   });
+
+  // Esconder grupos que não têm nenhuma sub-tab visível
+  document.querySelectorAll('.group-tab').forEach((groupBtn) => {
+    const group = groupBtn.dataset.group;
+    const visibleTabs = Array.from(document.querySelectorAll(`.tab[data-group="${group}"]`))
+      .filter((t) => !t.classList.contains('hidden'));
+    groupBtn.classList.toggle('hidden', visibleTabs.length === 0);
+  });
+
+    // Se o tab ativo já não é acessível, voltar ao dashboard
   const activeTab = document.querySelector('.tab.active')?.dataset.tab;
-  if (activeTab && !can(activeTab)) activate('dashboard');
+  if (activeTab && !can(activeTab)) {
+    activate('dashboard');
+  } else {
+    // Garantir que o grupo ativo está sincronizado no arranque
+    const current = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
+    activate(current);
+  }
 }
+
+// =====================================================================
+// PATCH 9 — Navegação por grupos
+// =====================================================================
+
+document.querySelectorAll('.group-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const group = btn.dataset.group;
+    // Encontrar a primeira sub-tab visível deste grupo
+    const firstTab = Array.from(document.querySelectorAll(`.tab[data-group="${group}"]`))
+      .find((t) => !t.classList.contains('hidden'));
+    if (firstTab) activate(firstTab.dataset.tab);
+  });
+});
 
 function requireAdmin() {
   if (!can('admin')) {
