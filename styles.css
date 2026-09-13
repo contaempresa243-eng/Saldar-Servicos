@@ -491,10 +491,23 @@ td {
 }
 .close-modal {
   position: absolute;
-  right: 16px; top: 8px;
-  font-size: 24px;
+  right: 12px;
+  top: 8px;
+  font-size: 28px;
   cursor: pointer;
   color: var(--muted);
+  z-index: 10;
+  padding: 8px 12px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.close-modal:active {
+  background: #fee2e2;
+  color: #991b1b;
 }
 .close-modal:hover { color: #000; }
 

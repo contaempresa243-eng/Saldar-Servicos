@@ -2374,6 +2374,33 @@ window.imprimir80mm = function() {
 };
 
 // =====================================================================
+// FECHAR MODAL DE RECIBO (Patch 11)
+// =====================================================================
+
+els.receiptModal?.addEventListener('click', (e) => {
+  // Fechar se clicar no X (qualquer elemento .close-modal)
+  if (e.target.closest('.close-modal')) {
+    els.receiptModal.classList.add('hidden');
+    return;
+  }
+  // Fechar se clicar no fundo escuro
+  if (e.target === els.receiptModal) {
+    els.receiptModal.classList.add('hidden');
+  }
+});
+
+// Botão "Fechar recibo" no fundo do modal
+document.getElementById('closeReceiptBtn')?.addEventListener('click', () => {
+  els.receiptModal.classList.add('hidden');
+});
+
+// Tecla ESC (desktop)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && els.receiptModal && !els.receiptModal.classList.contains('hidden')) {
+    els.receiptModal.classList.add('hidden');
+  }
+});
+// =====================================================================
 // PWA install
 // =====================================================================
 
