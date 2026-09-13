@@ -1093,16 +1093,46 @@ function renderAuditLog() {
   const filtered = filter === 'todos' ? all : all.filter((e) => e.action === filter);
 
   els.auditLogList.innerHTML = filtered.length
-    ? filtered.slice(0, 200).map((entry) => `
-      <div class="item">
-        <div class="product-name-row">
-          <strong>${esc(entry.action)}</strong>
-          <span class="badge info">${esc(entry.userRole || 'operador')}</span>
-        </div>
-        <span>${esc(entry.userName)} • ${new Date(entry.date).toLocaleString('pt-PT')}</span>
-        ${entry.details && Object.keys(entry.details).length ? `<div class="meta-row"><span class="badge warning">${esc(JSON.stringify(entry.details).slice(0, 120))}</span></div>` : ''}
-      </div>
-    `).join('')
+    ? filtered.slice(0, 200).map((entry) => {
+        let detailsHtml = '';
+
+        // Venda multi-item: mostrar todos os itens
+        if (entry.action === 'venda' && entry.details?.items?.length) {
+          const items = entry.details.items;
+          const itemsHtml = items.map((i) => `
+            <div class="cart-item-row" style="margin-top:6px;padding:6px 10px;background:#fff;border-radius:8px;border:1px solid var(--border);">
+              <div class="cart-item-info">
+                <strong>${esc(i.productName)}</strong>
+                <small>${esc(i.quantity)} x ${money(i.unitPrice)}</small>
+              </div>
+              <span class="cart-item-total">${money(i.total)}</span>
+            </div>
+          `).join('');
+          detailsHtml = `
+            <div style="margin-top:8px;">
+              <span class="badge warning">${items.length} ${items.length === 1 ? 'item' : 'itens'} • Total: ${money(entry.details.grandTotal || 0)}</span>
+              ${itemsHtml}
+              <div style="margin-top:8px;font-size:12px;color:var(--muted);">
+                ${esc(entry.details.paymentMethod || '')}${entry.details.note ? ' • ' + esc(entry.details.note) : ''}
+              </div>
+            </div>
+          `;
+        } else if (entry.details && Object.keys(entry.details).length) {
+          // Outros tipos: JSON truncado (comportamento antigo)
+          detailsHtml = `<div class="meta-row"><span class="badge warning">${esc(JSON.stringify(entry.details).slice(0, 150))}</span></div>`;
+        }
+
+        return `
+          <div class="item">
+            <div class="product-name-row">
+              <strong>${esc(entry.action)}</strong>
+              <span class="badge info">${esc(entry.userRole || 'operador')}</span>
+            </div>
+            <span>${esc(entry.userName)} • ${new Date(entry.date).toLocaleString('pt-PT')}</span>
+            ${detailsHtml}
+          </div>
+        `;
+      }).join('')
     : '<div class="item empty-state"><strong>Sem registos</strong><span>Nenhuma ação de auditoria encontrada.</span></div>';
 }
 
