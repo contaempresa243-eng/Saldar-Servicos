@@ -955,3 +955,151 @@ td {
     grid-template-columns: 1fr;
   }
 }
+/* ============================================================
+   PATCH 11 — Recibo 80mm (v14)
+   ============================================================ */
+
+.receipt-modal-content {
+  max-width: 460px;
+}
+
+.receipt-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.receipt-actions button {
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.receipt-actions #sendWhatsAppBtn {
+  grid-column: 1 / -1;
+}
+
+/* Estilo do "papel" 80mm dentro do modal */
+.receipt-box {
+  font-family: 'Courier New', Courier, monospace;
+  background: #fff;
+  padding: 14px;
+  border: 1px dashed #999;
+  font-size: 12px;
+  text-align: left;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.receipt-box h2 {
+  font-size: 15px;
+  margin: 0 0 4px;
+  text-align: center;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.receipt-box .receipt-slogan {
+  font-size: 10px;
+  text-align: center;
+  font-style: italic;
+  margin: 0 0 8px;
+  color: #555;
+}
+
+.receipt-box hr {
+  border: 0;
+  border-top: 1px dashed #333;
+  margin: 6px 0;
+}
+
+.receipt-box .receipt-meta {
+  font-size: 11px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.receipt-box .receipt-item {
+  margin: 6px 0;
+}
+
+.receipt-box .receipt-item-name {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.receipt-box .receipt-item-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #333;
+}
+
+.receipt-box .receipt-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.receipt-box .receipt-footer {
+  font-size: 10px;
+  text-align: center;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* ============================================================
+   IMPRESSÃO 80mm — @media print
+   ============================================================ */
+
+@media print {
+  /* Esconder tudo por padrão */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Mostrar apenas o recibo */
+  #receiptModal,
+  #receiptModal * {
+    visibility: visible;
+  }
+
+  /* Reposicionar o modal no topo da página */
+  #receiptModal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background: none;
+    padding: 0;
+    margin: 0;
+    display: block;
+  }
+
+  .receipt-modal-content {
+    box-shadow: none;
+    border: none;
+    width: 80mm;
+    max-width: 80mm;
+    border-radius: 0;
+    padding: 2mm;
+    margin: 0;
+    background: #fff;
+  }
+
+  .close-modal,
+  .receipt-actions {
+    display: none !important;
+  }
+
+  .receipt-box {
+    border: 0;
+    padding: 0;
+    max-width: 100%;
+    width: 100%;
+    font-size: 11pt;
+  }
+}
