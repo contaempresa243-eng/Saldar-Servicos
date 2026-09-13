@@ -515,9 +515,9 @@ function applyPermissions() {
 document.querySelectorAll('.group-tab').forEach((btn) => {
   btn.addEventListener('click', () => {
     const group = btn.dataset.group;
-    // Encontrar a primeira sub-tab visível deste grupo
+    // Encontrar a primeira sub-tab PERMITIDA deste grupo
     const firstTab = Array.from(document.querySelectorAll(`.tab[data-group="${group}"]`))
-      .find((t) => !t.classList.contains('hidden'));
+      .find((t) => can(t.dataset.tab));
     if (firstTab) activate(firstTab.dataset.tab);
   });
 });
