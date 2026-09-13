@@ -156,19 +156,31 @@
 
     <section class="stats-grid" id="statsGrid"></section>
 
-    <nav class="tabs" id="tabs">
-      <button class="tab active" data-tab="dashboard">Painel</button>
-      <button class="tab" data-tab="produtos" data-role="admin">Produtos</button>
-      <button class="tab" data-tab="stock" data-role="admin">Stock</button>
-      <button class="tab" data-tab="venda">Venda</button>
-      <button class="tab" data-tab="caixa" data-role="admin">Caixa</button>
-      <button class="tab" data-tab="historico">Histórico</button>
-      <button class="tab" data-tab="relatorio" data-role="admin">Relatório</button>
-      <button class="tab" data-tab="usuarios" data-role="admin">Usuários</button>
-      <button class="tab" data-tab="backup" data-role="admin">Backup</button>
-      <button class="tab" data-tab="auditoria" data-role="admin">Auditoria</button>
-      <button class="tab" data-tab="nuvem">Nuvem</button>
-    </nav>
+    <!-- Grupos de navegação (nível 1) -->
+<nav class="tabs-groups" id="tabGroups">
+  <button class="group-tab active" data-group="painel" type="button">📊 Painel</button>
+  <button class="group-tab" data-group="operacoes" type="button">🛒 Operações</button>
+  <button class="group-tab" data-group="gestao" type="button">👥 Gestão</button>
+  <button class="group-tab" data-group="sistema" type="button">⚙️ Sistema</button>
+</nav>
+
+<!-- Sub-tabs (nível 2) — apenas do grupo ativo -->
+<nav class="tabs subtabs" id="tabs">
+  <button class="tab active" data-tab="dashboard" data-group="painel">Painel</button>
+
+  <button class="tab" data-tab="venda" data-group="operacoes">Venda</button>
+  <button class="tab" data-tab="stock" data-group="operacoes" data-role="admin">Stock</button>
+  <button class="tab" data-tab="caixa" data-group="operacoes" data-role="admin">Caixa</button>
+  <button class="tab" data-tab="historico" data-group="operacoes">Histórico</button>
+
+  <button class="tab" data-tab="produtos" data-group="gestao" data-role="admin">Produtos</button>
+  <button class="tab" data-tab="usuarios" data-group="gestao" data-role="admin">Usuários</button>
+  <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
+  <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
+
+  <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
+  <button class="tab" data-tab="nuvem" data-group="sistema">Nuvem</button>
+</nav>
 
     <main>
       <section class="tab-panel active" id="dashboard">

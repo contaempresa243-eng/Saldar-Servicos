@@ -815,3 +815,50 @@ td {
 .demo-box {
   display: none !important;
 }
+/* ============================================================
+   PATCH 9 — Grupos de navegação (v12)
+   ============================================================ */
+
+.tabs-groups {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.group-tab {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 10px;
+  cursor: pointer;
+  background: #fff;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-tab:active { opacity: 0.75; }
+
+.group-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.subtabs {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .tabs-groups {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .group-tab {
+    font-size: 13px;
+    padding: 10px 8px;
+  }
+}

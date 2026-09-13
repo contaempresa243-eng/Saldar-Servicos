@@ -459,12 +459,28 @@ function showApp(show) {
 }
 
 function activate(tabId) {
+  const tabBtn = document.querySelector(`.tab[data-tab="${tabId}"]`);
+  const group = tabBtn?.dataset.group;
+
+  // 1. Sincronizar o grupo de navegação (nível 1)
+  if (group) {
+    document.querySelectorAll('.group-tab').forEach((g) => {
+      g.classList.toggle('active', g.dataset.group === group);
+    });
+    // Mostrar apenas sub-tabs do grupo ativo
+    document.querySelectorAll('.tab').forEach((t) => {
+      if (t.dataset.group) {
+        t.classList.toggle('hidden', t.dataset.group !== group);
+      }
+    });
+  }
+
+  // 2. Ativar o painel e o sub-tab
   document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-  document.querySelector(`.tab[data-tab="${tabId}"]`)?.classList.add('active');
+  tabBtn?.classList.add('active');
   document.getElementById(tabId)?.classList.add('active');
 }
-
 function applyPermissions() {
   document.querySelectorAll('[data-role="admin"]').forEach((el) => {
     el.classList.toggle('hidden', !can('admin'));
