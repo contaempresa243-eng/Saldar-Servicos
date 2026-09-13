@@ -1890,9 +1890,9 @@ async function finalizeSale() {
   toast(`Venda registada: ${money(grandTotal)}`, 5000);
 
   // Abrir recibo do primeiro item (ou podíamos fazer recibo multi-item no futuro)
-  if (saleIds.length === 1) {
-    // Se foi só 1 item, abre o recibo desse item
-    window.imprimirRecibo?.(saleIds[0]);
+  if (saleIds.length >= 1) {
+  // Abre recibo (multi-item ou single — a função trata os dois casos)
+  window.imprimirRecibo?.(saleIds[0]);
   }
 }
 
@@ -2289,57 +2289,89 @@ window.imprimirRecibo = function(saleId) {
   const sale = state.history.find(item => item.id === saleId);
   if (!sale) return toast('Recibo não encontrado.');
 
-  const modal = els.receiptModal;
-  const content = els.receiptContent;
+  // Encontrar todos os itens da mesma venda (mesma data + mesmo utilizador)
+  const siblings = state.history.filter(item =>
+    item.type === 'venda' &&
+    item.date === sale.date &&
+    item.createdById === sale.createdById
+  );
+
+  const items = siblings.length > 1 ? siblings : [sale];
+  const grandTotal = items.reduce((s, i) => s + Number(i.total || 0), 0);
   const date = new Date(sale.date).toLocaleString('pt-PT');
 
-  content.innerHTML = `
-    <div class="receipt-box">
-      <h2>Saldar Serviços</h2>
-      <p>${esc(date)}</p>
-      <hr>
-      <div class="receipt-row"><span>Produto:</span><span><strong>${esc(sale.productName)}</strong></span></div>
-      <div class="receipt-row"><span>Qtd:</span><span>${esc(sale.quantity)}</span></div>
-      <div class="receipt-row"><span>P. Unit.:</span><span>${money(sale.unitPrice)}</span></div>
-      <hr>
-      <div class="receipt-row" style="font-weight:700; font-size:14px;"><span>TOTAL:</span><span>${money(sale.total)}</span></div>
-      <div class="receipt-row"><span>Método:</span><span>${esc(sale.paymentMethod)}</span></div>
-      ${sale.note ? `<div class="receipt-row"><span>Obs:</span><span>${esc(sale.note)}</span></div>` : ''}
-      <hr>
-      <p style="font-size:10px;">Obrigado pela preferência!</p>
-      <div style="display:flex; justify-content:center; gap:8px; margin-top:12px;">
-        <button class="secondary-btn" style="padding: 6px 12px; font-size:12px; cursor:pointer;" onclick="window.print()">🖨️ Imprimir</button>
-        <button class="primary" id="sendWhatsAppBtn" style="padding: 6px 12px; font-size:12px; cursor:pointer;">📱 WhatsApp</button>
+  const itemsHtml = items.map(i => `
+    <div class="receipt-item">
+      <div class="receipt-item-name">${esc(i.productName)}</div>
+      <div class="receipt-item-line">
+        <span>${esc(i.quantity)} x ${money(i.unitPrice)}</span>
+        <span>${money(i.total)}</span>
       </div>
+    </div>
+  `).join('');
+
+  els.receiptContent.innerHTML = `
+    <div class="receipt-box">
+      <h2>SALDAR SERVIÇOS</h2>
+      <p class="receipt-slogan">Gestão simples, resultados reais.</p>
+      <hr>
+      <div class="receipt-meta">
+        <div>Data: ${esc(date)}</div>
+        <div>Operador: ${esc(sale.createdByName || 'Sistema')}</div>
+        ${sale.note ? `<div>Cliente: ${esc(sale.note)}</div>` : ''}
+      </div>
+      <hr>
+      ${itemsHtml}
+      <hr>
+      <div class="receipt-total-row">
+        <span>TOTAL</span>
+        <span>${money(grandTotal)}</span>
+      </div>
+      <div class="receipt-item-line" style="margin-top:4px;">
+        <span>Método</span>
+        <span>${esc(sale.paymentMethod)}</span>
+      </div>
+      <hr>
+      <p class="receipt-footer">Obrigado pela preferência!</p>
+      <p class="receipt-footer">©2026 Saldar Serviços</p>
     </div>
   `;
 
+  // Configurar botão WhatsApp
   const waBtn = document.getElementById('sendWhatsAppBtn');
-  waBtn.addEventListener('click', () => {
-    const whatsappText = `
-*Saldar Serviços*
-Data: ${date}
--------------------
-Produto: ${sale.productName}
-Qtd: ${sale.quantity}
-P. Unit.: ${money(sale.unitPrice)}
--------------------
-*TOTAL: ${money(sale.total)}*
-Método: ${sale.paymentMethod}
-${sale.note ? `Obs: ${sale.note}` : ''}
--------------------
-Obrigado pela preferência!
-    `;
-    window.open(`https://wa.me/?text=${encodeURIComponent(whatsappText)}`, '_blank');
-  });
+  if (waBtn) {
+    const newBtn = waBtn.cloneNode(true);
+    waBtn.parentNode.replaceChild(newBtn, waBtn);
+    newBtn.addEventListener('click', () => {
+      let text = `*SALDAR SERVIÇOS*\n`;
+      text += `Gestão simples, resultados reais.\n\n`;
+      text += `Data: ${date}\n`;
+      text += `Operador: ${sale.createdByName || 'Sistema'}\n`;
+      if (sale.note) text += `Cliente: ${sale.note}\n`;
+      text += `-------------------\n`;
+      items.forEach(i => {
+        text += `${i.productName}\n`;
+        text += `  ${i.quantity} x ${money(i.unitPrice)} = ${money(i.total)}\n`;
+      });
+      text += `-------------------\n`;
+      text += `*TOTAL: ${money(grandTotal)}*\n`;
+      text += `Método: ${sale.paymentMethod}\n`;
+      text += `-------------------\n`;
+      text += `Obrigado pela preferência!`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    });
+  }
 
-  modal.classList.remove('hidden');
+  els.receiptModal.classList.remove('hidden');
 };
 
-els.closeModal?.addEventListener('click', () => els.receiptModal.classList.add('hidden'));
-els.receiptModal?.addEventListener('click', (e) => {
-  if (e.target === els.receiptModal) els.receiptModal.classList.add('hidden');
-});
+window.imprimir80mm = function() {
+  if (!els.receiptModal || els.receiptModal.classList.contains('hidden')) {
+    toast('Nenhum recibo aberto.');
+    return;
+  }
+  window.print();
+};
 
 // =====================================================================
 // PWA install

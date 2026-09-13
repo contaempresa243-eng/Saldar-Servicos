@@ -440,13 +440,18 @@
     </div>
   </div>
 
-  <!-- Modal de recibo -->
-  <div id="receiptModal" class="modal hidden">
-    <div class="modal-content">
-      <span class="close-modal">&times;</span>
-      <div id="receiptContent"></div>
+  <!-- Modal de recibo (Patch 11) -->
+<div id="receiptModal" class="modal hidden">
+  <div class="modal-content receipt-modal-content">
+    <span class="close-modal">&times;</span>
+    <div id="receiptContent"></div>
+    <div class="receipt-actions">
+      <button type="button" class="secondary-btn" onclick="window.imprimir80mm()">🎫 Imprimir 80mm</button>
+      <button type="button" class="secondary-btn" onclick="window.print()">🖨️ Imprimir A4</button>
+      <button type="button" class="primary" id="sendWhatsAppBtn">📱 WhatsApp</button>
     </div>
   </div>
+</div>
 
   <!-- Toast GLOBAL (fora do appShell para aparecer também no login) -->
   <div id="toast" class="toast hidden"></div>
