@@ -1,30 +1,11 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v8 + Patch 8: sessão por inatividade)
+// SALDAR SERVIÇOS — app.js (v11)
 // =====================================================================
 
 // ============================================================
-// 🔍 DIAGNÓSTICO TEMPORÁRIO — REMOVER NO FIM
+// LOG DE ERROS — silencioso em produção
 // ============================================================
-window.addEventListener('error', (e) => {
-  try { alert('❌ ERRO GLOBAL:\n\n' + (e.error?.stack || e.message || String(e))); } catch {}
-});
-window.addEventListener('unhandledrejection', (e) => {
-  try { alert('❌ PROMISE REJEITADA:\n\n' + (e.reason?.stack || e.reason?.message || String(e.reason))); } catch {}
-});
-
 const _origConsoleError = console.error.bind(console);
-console.error = function (...args) {
-  _origConsoleError(...args);
-  try {
-    const first = args[0];
-    if (first && typeof first === 'object') {
-      const code = first.code || first?.error?.code;
-      if (code && String(code).startsWith('auth/')) {
-        alert('❌ Firebase Auth [' + code + ']:\n\n' + (first.message || first?.error?.message || ''));
-      }
-    }
-  } catch {}
-};
 
 // ============================================================
 // APP
@@ -61,10 +42,9 @@ const isHash = (s) => typeof s === 'string' && /^[a-f0-9]{64}$/i.test(s);
 // =====================================================================
 // SESSÃO — Timeout por inatividade (Patch 8)
 // =====================================================================
-// ⚠️ VALORES DE TESTE — alterar para produção quando confirmado
-const IDLE_TIMEOUT_MIN = 30;        // ⏱️ TESTE. Produção: 30
-const IDLE_WARNING_SEC = 60;       // ⚠️ TESTE. Produção: 60
-const IDLE_CHECK_INTERVAL_MS = 5 * 1000;
+const IDLE_TIMEOUT_MIN = 30;       // ⏱️ 30 minutos em produção
+const IDLE_WARNING_SEC = 60;       // ⚠️ Aviso 1 minuto antes de expirar
+const IDLE_CHECK_INTERVAL_MS = 15 * 1000;
 
 const idleState = {
   lastActivity: Date.now(),
@@ -312,7 +292,12 @@ const els = {
   auditLogList: document.getElementById('auditLogList'),
   auditLogFilter: document.getElementById('auditLogFilter'),
   idleWarningModal: document.getElementById('idleWarningModal'),
-  idleWarningCountdown: document.getElementById('idleWarningCountdown')
+  idleWarningCountdown: document.getElementById('idleWarningCountdown'),
+  connectivityBadge: document.getElementById('connectivityBadge'),
+  drawerMenu: document.getElementById('drawerMenu'),
+  drawerOverlay: document.getElementById('drawerOverlay'),
+  openMenuBtn: document.getElementById('openMenuBtn'),
+  closeMenuBtn: document.getElementById('closeMenuBtn')
 };
 
 function toast(message, duration = 8000) {
@@ -342,7 +327,8 @@ window.__saldarDebug = function() {
     configValid: !!cfg,
     projectId: cfg?.projectId || null,
     idleTimeout: IDLE_TIMEOUT_MIN + ' min',
-    idleWarning: IDLE_WARNING_SEC + ' s'
+    idleWarning: IDLE_WARNING_SEC + ' s',
+    navigatorOnline: navigator.onLine
   };
   _origConsoleError('[__saldarDebug]', info);
   return info;
@@ -394,11 +380,37 @@ function markMode() {
   const online = cloudMode();
   if (els.modeBadge) els.modeBadge.textContent = online ? 'Modo online' : 'Modo local';
   if (els.cloudTopBadge) els.cloudTopBadge.textContent = online ? 'Firebase' : 'Local';
-  if (els.authHint) els.authHint.textContent = online ? 'Use email e palavra-passe para entrar no modo online.' : 'Use os acessos locais ou ative o modo online com Firebase.';
+  if (els.authHint) els.authHint.textContent = online
+    ? 'Use email e palavra-passe para entrar no modo online.'
+    : 'Use os acessos locais ou ative o modo online com Firebase.';
   if (els.localAccessBox) els.localAccessBox.classList.toggle('hidden', online);
-  if (els.cloudStatusText) els.cloudStatusText.textContent = online ? `Configuração online salva para o projeto ${cloudProjectName()}.` : 'Sem configuração online ativa.';
+  if (els.cloudStatusText) els.cloudStatusText.textContent = online
+    ? `Configuração online salva para o projeto ${cloudProjectName()}.`
+    : 'Sem configuração online ativa.';
   if (els.forgotPasswordLink) els.forgotPasswordLink.classList.toggle('hidden', !online);
   if (els.resendVerifyLink) els.resendVerifyLink.classList.toggle('hidden', !online);
+  updateConnectivityBadge();
+}
+
+function updateConnectivityBadge() {
+  const badge = els.connectivityBadge;
+  if (!badge) return;
+  const configured = cloudMode();
+  const online = navigator.onLine;
+  let text = '';
+  let cls = '';
+  if (configured && online) {
+    text = '🟢 Firebase ativo';
+    cls = 'online';
+  } else if (configured && !online) {
+    text = '🟡 Offline — a usar cache';
+    cls = 'offline-cache';
+  } else {
+    text = '⚪ Modo local';
+    cls = 'local';
+  }
+  badge.textContent = text;
+  badge.className = 'connectivity-badge ' + cls;
 }
 
 function switchAuthView(view = 'login') {
@@ -438,11 +450,9 @@ function showApp(show) {
     const user = getCurrentUser();
     if (user) document.body.setAttribute('data-role', user.role);
     renderAll();
-    // Patch 8: iniciar timer de inatividade
     setTimeout(() => hookIdleTimerToSession(), 500);
   } else {
     document.body.removeAttribute('data-role');
-    // Patch 8: parar timer
     stopIdleTimer();
     detachIdleListeners();
   }
@@ -479,6 +489,29 @@ function require(feature, msg) {
   if (!can(feature)) { toast(msg || 'Sem permissão para esta ação.'); return false; }
   return true;
 }
+
+// =====================================================================
+// DRAWER (menu lateral) — v11
+// =====================================================================
+
+function openDrawer() {
+  els.drawerMenu?.classList.add('open');
+  els.drawerOverlay?.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  els.drawerMenu?.classList.remove('open');
+  els.drawerOverlay?.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+els.openMenuBtn?.addEventListener('click', openDrawer);
+els.closeMenuBtn?.addEventListener('click', closeDrawer);
+els.drawerOverlay?.addEventListener('click', closeDrawer);
+
+window.addEventListener('online', updateConnectivityBadge);
+window.addEventListener('offline', updateConnectivityBadge);
 
 // =====================================================================
 // SESSÃO — Sistema de timeout (Patch 8)
@@ -1030,7 +1063,6 @@ function renderAll() {
   try { renderDashboardFinanceiro(); } catch (e) { _origConsoleError('[renderDashboardFinanceiro]', e); }
   try { renderAuditLog(); } catch (e) { _origConsoleError('[renderAuditLog]', e); }
 }
-
 // =====================================================================
 // Forms
 // =====================================================================
@@ -1254,7 +1286,7 @@ async function logout() {
 function downloadBackup() {
   const safeUsers = state.users.map(({ password, ...rest }) => rest);
   const payload = {
-    version: 8,
+    version: 11,
     exportedAt: now(),
     data: {
       products: state.products,
@@ -1305,6 +1337,7 @@ els.saveCloudConfigBtn?.addEventListener('click', async () => {
   saveSettings();
   markMode();
   switchAuthView('login');
+  updateConnectivityBadge();
 
   if (cloudMode()) {
     await initFirebase();
@@ -1904,7 +1937,7 @@ els.importBackupBtn?.addEventListener('click', async () => {
 });
 
 // =====================================================================
-// Eventos
+// Eventos diversos
 // =====================================================================
 
 els.saleProduct?.addEventListener('change', () => { syncPrice(); updateSaleHint(); });
@@ -2048,13 +2081,14 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v11...');
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
 
   if (els.cloudEnabled) els.cloudEnabled.checked = settings.cloudEnabled;
   if (els.firebaseConfigInput) els.firebaseConfigInput.value = settings.firebaseConfig || '';
   if (els.adminEmailsInput) els.adminEmailsInput.value = settings.adminEmails || '';
   markMode();
+  updateConnectivityBadge();
   switchAuthView('login');
 
   if (cloudMode()) {
