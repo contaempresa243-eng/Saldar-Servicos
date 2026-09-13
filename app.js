@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v12)
+// SALDAR SERVIÇOS — app.js (v13)
 // =====================================================================
 
 // ============================================================
@@ -51,6 +51,13 @@ const idleState = {
   checkTimer: null,
   warningShown: false,
   listenersAttached: false
+};
+
+// =====================================================================
+// CARRINHO DE VENDAS — Patch 10
+// =====================================================================
+const cart = {
+  items: []   // { productId, productName, category, quantity, unitPrice, total }
 };
 
 // =====================================================================
@@ -297,7 +304,13 @@ const els = {
   drawerMenu: document.getElementById('drawerMenu'),
   drawerOverlay: document.getElementById('drawerOverlay'),
   openMenuBtn: document.getElementById('openMenuBtn'),
-  closeMenuBtn: document.getElementById('closeMenuBtn')
+    closeMenuBtn: document.getElementById('closeMenuBtn'),
+  cartList: document.getElementById('cartList'),
+  cartSummary: document.getElementById('cartSummary'),
+  cartTotalValue: document.getElementById('cartTotalValue'),
+  cartItemCount: document.getElementById('cartItemCount'),
+  clearCartBtn: document.getElementById('clearCartBtn'),
+  finalizeSaleBtn: document.getElementById('finalizeSaleBtn')
 };
 
 function toast(message, duration = 8000) {
@@ -1667,49 +1680,248 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
 });
 
 // =====================================================================
+// CARRINHO — Funções (Patch 10)
+// =====================================================================
+
+function renderCart() {
+  if (!els.cartList) return;
+
+  const count = cart.items.length;
+  const total = cart.items.reduce((s, item) => s + Number(item.total || 0), 0);
+
+  // Contador no topo do card
+  if (els.cartItemCount) {
+    els.cartItemCount.textContent = count === 0
+      ? 'Nenhum produto adicionado'
+      : `${count} ${count === 1 ? 'produto' : 'produtos'} no carrinho`;
+  }
+
+  // Lista de items
+  if (count === 0) {
+    els.cartList.innerHTML = '<div class="item empty-state">Adicione produtos usando o formulário acima.</div>';
+  } else {
+    els.cartList.innerHTML = cart.items.map((item, index) => `
+      <div class="item">
+        <div class="cart-item-row">
+          <div class="cart-item-info">
+            <strong>${esc(item.productName)}</strong>
+            <small>${item.quantity} x ${money(item.unitPrice)}</small>
+          </div>
+          <span class="cart-item-total">${money(item.total)}</span>
+          <button type="button" class="cart-item-remove" data-cart-index="${index}" title="Remover">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Resumo (total + ações)
+  if (els.cartSummary) {
+    els.cartSummary.classList.toggle('hidden', count === 0);
+  }
+  if (els.cartTotalValue) {
+    els.cartTotalValue.textContent = money(total);
+  }
+}
+
+function addToCart(productId, qty, unitPrice) {
+  const product = byId(productId);
+  if (!product) return toast('Produto não encontrado.');
+
+  const total = qty * unitPrice;
+
+  // Verificar se já existe no carrinho (mesmo produto + mesmo preço)
+  const existingIndex = cart.items.findIndex(
+    (i) => i.productId === productId && Number(i.unitPrice) === Number(unitPrice)
+  );
+
+  if (existingIndex >= 0) {
+    // Somar quantidade
+    cart.items[existingIndex].quantity += qty;
+    cart.items[existingIndex].total = cart.items[existingIndex].quantity * cart.items[existingIndex].unitPrice;
+  } else {
+    cart.items.push({
+      productId: product.id,
+      productName: product.name,
+      category: product.category,
+      quantity: qty,
+      unitPrice,
+      total
+    });
+  }
+
+  renderCart();
+}
+
+function removeFromCart(index) {
+  if (index < 0 || index >= cart.items.length) return;
+  cart.items.splice(index, 1);
+  renderCart();
+}
+
+function clearCart() {
+  if (cart.items.length === 0) return;
+  if (!confirm('Tem certeza que deseja limpar o carrinho?')) return;
+  cart.items = [];
+  renderCart();
+}
+
+async function finalizeSale() {
+  if (cart.items.length === 0) {
+    toast('Adicione pelo menos um produto ao carrinho.');
+    return;
+  }
+
+  const user = getCurrentUser();
+  if (!user) return;
+
+  const paymentMethod = els.saleMethod?.value || 'dinheiro';
+  const note = els.saleNote?.value.trim() || '';
+
+  // VALIDAÇÃO: verificar stock de cada item
+  for (const item of cart.items) {
+    const product = byId(item.productId);
+    if (!product) {
+      toast(`Produto "${item.productName}" não encontrado.`);
+      return;
+    }
+    if (product.category === 'RL') {
+      if (Number(product.stock) < Number(item.total)) {
+        toast(`Saldo insuficiente em ${product.name}. Disponível: ${money(product.stock)}.`);
+        return;
+      }
+    } else {
+      if (Number(product.stock) < Number(item.quantity)) {
+        toast(`Stock insuficiente em ${product.name}. Disponível: ${product.stock} un.`);
+        return;
+      }
+    }
+  }
+
+  // Aplicar desconto ao stock e criar registos no histórico
+  const saleDate = now();
+  const saleIds = [];
+
+  for (const item of cart.items) {
+    const product = byId(item.productId);
+    if (!product) continue;
+
+    if (product.category === 'RL') {
+      product.stock -= item.total;
+    } else {
+      product.stock -= item.quantity;
+    }
+
+    const saleId = uid();
+    saleIds.push(saleId);
+    state.history.push({
+      id: saleId,
+      type: 'venda',
+      productId: product.id,
+      productName: product.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: item.total,
+      paymentMethod,
+      note,
+      createdById: user.id,
+      createdByName: user.fullName,
+      date: saleDate
+    });
+  }
+
+  const grandTotal = cart.items.reduce((s, i) => s + Number(i.total || 0), 0);
+
+  await saveState();
+
+  // Auditoria (1 registo por venda com o resumo)
+  await logAudit('venda', {
+    items: cart.items.map((i) => ({
+      productId: i.productId,
+      productName: i.productName,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      total: i.total
+    })),
+    grandTotal,
+    paymentMethod,
+    note,
+    multiItem: true
+  });
+
+  // Limpar carrinho e formulário
+  cart.items = [];
+  renderCart();
+  els.saleForm?.reset();
+  syncPrice();
+  updateSaleHint();
+
+  renderAll();
+
+  toast(`Venda registada: ${money(grandTotal)}`, 5000);
+
+  // Abrir recibo do primeiro item (ou podíamos fazer recibo multi-item no futuro)
+  if (saleIds.length === 1) {
+    // Se foi só 1 item, abre o recibo desse item
+    window.imprimirRecibo?.(saleIds[0]);
+  }
+}
+
+// Listeners do carrinho
+els.clearCartBtn?.addEventListener('click', clearCart);
+els.finalizeSaleBtn?.addEventListener('click', finalizeSale);
+
+// Listener para remover item (delegação de eventos)
+els.cartList?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-cart-index]');
+  if (!btn) return;
+  const index = parseInt(btn.dataset.cartIndex, 10);
+  removeFromCart(index);
+});
+
+// =====================================================================
 // Venda
 // =====================================================================
 
-document.getElementById('saleForm')?.addEventListener('submit', async (e) => {
+document.getElementById('saleForm')?.addEventListener('submit', (e) => {
   e.preventDefault();
   const product = byId(els.saleProduct.value);
   const qty = Number(els.saleQty.value);
   const unitPrice = Number(els.salePrice.value);
-  const user = getCurrentUser();
 
-  if (!product || qty <= 0 || unitPrice < 0 || !user) return;
+  if (!product || qty <= 0 || unitPrice < 0) return;
+
+  // Bloquear desconto a operadores em CF
   if (product.category === 'CF' && !can('vendaDesconto') && unitPrice < product.price) {
     return toast(`Sem permissão para desconto. Preço mínimo: ${money(product.price)}.`);
   }
 
-  const totalSale = qty * unitPrice;
-  if (product.stock < totalSale) return toast(`Saldo insuficiente. Stock atual: ${money(product.stock)}.`);
+  // Validar stock (sem descontar ainda — só no finalizeSale)
+  const totalToAdd = qty * unitPrice;
 
-  if (product.category === 'RL') product.stock -= totalSale;
-  else product.stock -= qty;
+  // Soma ao que já está no carrinho para validar
+  const jaNoCarrinho = cart.items
+    .filter((i) => i.productId === product.id)
+    .reduce((s, i) => s + Number(i.category === 'RL' ? i.total : i.quantity), 0);
 
-  const saleId = uid();
-  state.history.push({
-    id: saleId, type: 'venda', productId: product.id, productName: product.name,
-    quantity: qty, unitPrice, total: totalSale,
-    paymentMethod: els.saleMethod.value, note: els.saleNote.value.trim(),
-    createdById: user.id, createdByName: user.fullName, date: now()
-  });
+  if (product.category === 'RL') {
+    if (Number(product.stock) < (jaNoCarrinho + totalToAdd)) {
+      return toast(`Saldo insuficiente em ${product.name}. Disponível: ${money(product.stock - jaNoCarrinho)}.`);
+    }
+  } else {
+    if (Number(product.stock) < (jaNoCarrinho + qty)) {
+      return toast(`Stock insuficiente em ${product.name}. Disponível: ${product.stock - jaNoCarrinho} un.`);
+    }
+  }
 
-  await saveState();
-  await logAudit('venda', {
-    productId: product.id,
-    productName: product.name,
-    quantity: qty,
-    unitPrice,
-    total: totalSale,
-    paymentMethod: els.saleMethod.value
-  });
-  e.target.reset();
+  // Adicionar ao carrinho
+  addToCart(product.id, qty, unitPrice);
+
+  // Não fazer reset completo — só dos campos de produto/quantidade/preço
+  els.saleQty.value = '1';
   syncPrice();
   updateSaleHint();
-  renderAll();
-  toast('Venda registrada com sucesso!');
+
+  toast(`${product.name} adicionado ao carrinho.`, 3000);
 });
 
 // =====================================================================

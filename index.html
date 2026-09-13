@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Saldar Serviços • Versão 12</title>
+  <title>Saldar Serviços • Versão 13</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
@@ -14,7 +14,7 @@
 <body>
 
   <!-- ========================================================= -->
-  <!-- PÁGINA DE LOGIN (v11)                                       -->
+  <!-- PÁGINA DE LOGIN (v13)                                       -->
   <!-- ========================================================= -->
   <section class="auth-shell" id="authShell">
 
@@ -148,7 +148,7 @@
 
     <section class="hero-card">
       <div>
-        <h2>Versão 12 com auditoria e sessão segura</h2>
+        <h2>Versão 13 com auditoria e sessão segura</h2>
         <p>Sistema completo com auditoria, expiração de sessão por inatividade (30 min), backup, gestão de usuários, filtros de produtos e relatórios por período.</p>
       </div>
       <div class="hero-chip">AOA</div>
@@ -249,23 +249,45 @@
       </section>
 
       <section class="tab-panel" id="venda">
-        <div class="card">
-          <h3>Nova venda</h3>
-          <form id="saleForm" class="form-grid">
-            <label>Produto<select id="saleProduct"></select></label>
-            <label>Quantidade<input type="number" id="saleQty" min="1" step="1" required /></label>
-            <label>Preço unitário (AOA)<input type="number" id="salePrice" min="0" step="0.01" required /></label>
-            <label>Método de pagamento<select id="saleMethod">
-              <option value="dinheiro">Dinheiro</option>
-              <option value="transferencia">Transferência</option>
-              <option value="multicaixa">Multicaixa</option>
-            </select></label>
-            <label class="full-span">Cliente / nota<input type="text" id="saleNote" placeholder="Opcional" /></label>
-            <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
-            <button class="primary full-span" type="submit">Registrar venda</button>
-          </form>
-        </div>
-      </section>
+  <div class="card">
+    <h3>➕ Adicionar produto à venda</h3>
+    <form id="saleForm" class="form-grid">
+      <label>Produto<select id="saleProduct"></select></label>
+      <label>Quantidade<input type="number" id="saleQty" min="1" step="1" required /></label>
+      <label>Preço unitário (AOA)<input type="number" id="salePrice" min="0" step="0.01" required /></label>
+      <label>Método de pagamento<select id="saleMethod">
+        <option value="dinheiro">Dinheiro</option>
+        <option value="transferencia">Transferência</option>
+        <option value="multicaixa">Multicaixa</option>
+      </select></label>
+      <label class="full-span">Cliente / nota<input type="text" id="saleNote" placeholder="Opcional" /></label>
+      <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
+      <button class="primary full-span" type="submit">➕ Adicionar ao carrinho</button>
+    </form>
+  </div>
+
+  <div class="card cart-card">
+    <div class="section-head">
+      <div>
+        <h3>🛒 Carrinho</h3>
+        <p class="mini-text" id="cartItemCount">Nenhum produto adicionado</p>
+      </div>
+    </div>
+
+    <div id="cartList" class="list"></div>
+
+    <div id="cartSummary" class="cart-summary hidden">
+      <div class="cart-total-row">
+        <span>Total a pagar</span>
+        <strong id="cartTotalValue">0,00 AOA</strong>
+      </div>
+      <div class="cart-actions">
+        <button type="button" class="ghost" id="clearCartBtn">🗑️ Limpar</button>
+        <button type="button" class="primary" id="finalizeSaleBtn">✅ Finalizar venda</button>
+      </div>
+    </div>
+  </div>
+</section>
 
       <section class="tab-panel" id="caixa">
         <div class="card">

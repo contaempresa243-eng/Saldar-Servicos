@@ -862,3 +862,96 @@ td {
     padding: 10px 8px;
   }
 }
+/* ============================================================
+   PATCH 10 — Carrinho de vendas (v13)
+   ============================================================ */
+
+.cart-card {
+  margin-top: 16px;
+}
+
+#cartList {
+  margin-top: 12px;
+}
+
+#cartList .item {
+  padding: 10px 12px;
+}
+
+.cart-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cart-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-item-info strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cart-item-info small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cart-item-total {
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.cart-item-remove {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cart-item-remove:active {
+  opacity: 0.7;
+}
+
+.cart-summary {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid var(--primary);
+}
+
+.cart-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.cart-total-row strong {
+  color: var(--primary);
+  font-size: 22px;
+}
+
+.cart-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+
+.cart-actions button {
+  min-height: 46px;
+  font-weight: 700;
+}
+
+@media (max-width: 500px) {
+  .cart-actions {
+    grid-template-columns: 1fr;
+  }
+}

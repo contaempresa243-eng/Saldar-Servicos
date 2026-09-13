@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saldar-servicos-cache-v12';
+const CACHE_NAME = 'saldar-servicos-cache-v13';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
