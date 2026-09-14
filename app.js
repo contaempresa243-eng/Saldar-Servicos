@@ -2389,17 +2389,13 @@ els.receiptModal?.addEventListener('click', (e) => {
   }
 });
 
-// Botão "Fechar recibo" no fundo do modal
-document.getElementById('closeReceiptBtn')?.addEventListener('click', () => {
-  els.receiptModal.classList.add('hidden');
-});
-
 // Tecla ESC (desktop)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && els.receiptModal && !els.receiptModal.classList.contains('hidden')) {
     els.receiptModal.classList.add('hidden');
   }
 });
+
 // =====================================================================
 // PWA install
 // =====================================================================

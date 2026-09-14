@@ -973,50 +973,55 @@ td {
    ============================================================ */
 
 .receipt-modal-content {
-  max-width: 460px;
+  max-width: 340px;
+  padding: 14px;
 }
 
 .receipt-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 .receipt-actions button {
-  min-height: 44px;
+  min-height: 36px;
+  font-size: 12px;
+  padding: 6px 8px;
   font-weight: 700;
+  border-radius: 10px;
 }
 
 .receipt-actions #sendWhatsAppBtn {
   grid-column: 1 / -1;
+  min-height: 36px;
 }
 
 /* Estilo do "papel" 80mm dentro do modal */
 .receipt-box {
   font-family: 'Courier New', Courier, monospace;
   background: #fff;
-  padding: 14px;
+  padding: 10px;
   border: 1px dashed #999;
-  font-size: 12px;
+  font-size: 10px;
   text-align: left;
-  max-width: 320px;
+  max-width: 260px;
   margin: 0 auto;
 }
 
 .receipt-box h2 {
-  font-size: 15px;
-  margin: 0 0 4px;
+  font-size: 12px;
+  margin: 0 0 3px;
   text-align: center;
   letter-spacing: 1px;
   font-weight: 700;
 }
 
 .receipt-box .receipt-slogan {
-  font-size: 10px;
+  font-size: 8px;
   text-align: center;
   font-style: italic;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #555;
 }
 
@@ -1027,9 +1032,9 @@ td {
 }
 
 .receipt-box .receipt-meta {
-  font-size: 11px;
-  margin-bottom: 6px;
-  line-height: 1.4;
+  font-size: 9px;
+  margin-bottom: 4px;
+  line-height: 1.3;
 }
 
 .receipt-box .receipt-item {
@@ -1038,13 +1043,13 @@ td {
 
 .receipt-box .receipt-item-name {
   font-weight: 700;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .receipt-box .receipt-item-line {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 9px;
   color: #333;
 }
 
@@ -1052,14 +1057,14 @@ td {
   display: flex;
   justify-content: space-between;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12px;
   margin-top: 4px;
 }
 
 .receipt-box .receipt-footer {
-  font-size: 10px;
+  font-size: 8px;
   text-align: center;
-  margin-top: 8px;
+  margin-top: 6px;
   font-style: italic;
 }
 
@@ -1104,9 +1109,10 @@ td {
   }
 
   .close-modal,
-  .receipt-actions {
-    display: none !important;
-  }
+.receipt-actions,
+#closeReceiptBtn {
+  display: none !important;
+}
 
   .receipt-box {
     border: 0;
