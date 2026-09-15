@@ -538,7 +538,20 @@ td {
 }
 
 @media (max-width: 900px) {
-  .stats-grid, .dashboard-grid, .form-grid, .mode-strip {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stats-grid .stat {
+    padding: 12px;
+  }
+  .stats-grid .stat strong {
+    font-size: 20px;
+  }
+  .stats-grid .stat small {
+    font-size: 12px;
+  }
+  .dashboard-grid, .form-grid, .mode-strip {
     grid-template-columns: 1fr;
   }
   .tabs {
@@ -550,7 +563,7 @@ td {
     font-size: 13px;
     text-align: center;
   }
-  .hero-card, .topbar, .section-head {
+  .topbar, .section-head {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -1121,4 +1134,43 @@ td {
     width: 100%;
     font-size: 11pt;
   }
+}
+/* ============================================================
+   PATCH 12 — Modal de alertas de stock baixo
+   ============================================================ */
+
+#lowStockModal .receipt-modal-content {
+  max-width: 380px;
+}
+
+#lowStockModalList .item {
+  padding: 10px 12px;
+}
+
+#lowStockModalList .stock-warning-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+#lowStockModalList .stock-warning-item strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+#lowStockModalList .stock-warning-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#lowStockModalList .stock-warning-badge {
+  background: #ffedd5;
+  color: #9a3412;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }

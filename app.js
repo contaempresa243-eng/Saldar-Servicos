@@ -185,7 +185,7 @@ const PERMISSIONS = {
     admin: false, dashboard: true, verFinanceiro: false, verSaldoCaixa: false,
     produtos: false, stock: false, venda: true, vendaDesconto: false, caixa: false,
     historico: true, historicoTodos: false, relatorio: false, usuarios: false,
-    backup: false, nuvem: true, auditoria: false
+    backup: false, nuvem: false, auditoria: false
   }
 };
 
@@ -310,7 +310,8 @@ const els = {
   cartTotalValue: document.getElementById('cartTotalValue'),
   cartItemCount: document.getElementById('cartItemCount'),
   clearCartBtn: document.getElementById('clearCartBtn'),
-  finalizeSaleBtn: document.getElementById('finalizeSaleBtn')
+  finalizeSaleBtn: document.getElementById('finalizeSaleBtn'),
+  lowStockModalList: document.getElementById('lowStockModalList')
 };
 
 function toast(message, duration = 8000) {
@@ -800,11 +801,23 @@ function renderStats() {
   const lowCount = state.products.filter((p) => Number(p.stock || 0) <= Number(p.minStock || 0)).length;
   const todayRevenue = getTodaySales().reduce((sum, item) => sum + Number(item.total || 0), 0);
   const activeUsers = (cloudMode() ? session.cloudUsers : state.users).filter((u) => u.active !== false).length || 1;
-  const topProduct = topSalesToday()[0]?.[0] || 'Sem vendas hoje';
+
+  // Ajuste A — "Mais vendido hoje" com valor total
+  const topSalesData = topSalesToday()[0];
+  const topProductName = topSalesData?.[0] || 'Sem vendas hoje';
+  const topProductQty = topSalesData?.[1] || 0;
+  const topProductValue = topProductQty > 0
+    ? getTodaySales()
+        .filter((s) => s.productName === topProductName)
+        .reduce((s, i) => s + Number(i.total || 0), 0)
+    : 0;
+  const topProduct = topProductQty > 0
+    ? `${topProductName} — ${money(topProductValue)}`
+    : 'Sem vendas hoje';
 
   const stats = [
     { label: 'Total em stock', value: totalUnits },
-    { label: 'Alertas ativos', value: lowCount },
+    { label: 'Alertas ativos', value: lowCount, action: 'openLowStockModal' },
     { label: 'Vendas hoje', value: money(todayRevenue) },
     { label: 'Usuários ativos', value: activeUsers },
     { label: 'Mais vendido hoje', value: topProduct }
@@ -812,7 +825,10 @@ function renderStats() {
   if (can('verSaldoCaixa')) stats.splice(3, 0, { label: 'Caixa acumulado', value: money(getCashBalance()) });
 
   els.statsGrid.innerHTML = stats
-    .map((s) => `<div class="stat"><small>${esc(s.label)}</small><strong>${esc(s.value)}</strong></div>`)
+    .map((s) => {
+      const clickable = s.action ? ` style="cursor:pointer;" data-action="${esc(s.action)}"` : '';
+      return `<div class="stat"${clickable}><small>${esc(s.label)}</small><strong>${esc(s.value)}</strong></div>`;
+    })
     .join('');
 }
 
@@ -1049,6 +1065,10 @@ function renderUsers() {
 
 function renderCloudPanel() {
   if (!els.cloudPanel) return;
+  if (!can('nuvem')) {
+  els.cloudPanel.innerHTML = '<div class="item empty-state"><strong>Sem permissão</strong><span>Apenas administradores podem ver os detalhes do sistema.</span></div>';
+  return;
+  }
   const online = cloudMode();
   const current = getCurrentUser();
   const cfg = parseFirebaseConfig();
@@ -2393,6 +2413,70 @@ els.receiptModal?.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && els.receiptModal && !els.receiptModal.classList.contains('hidden')) {
     els.receiptModal.classList.add('hidden');
+  }
+});
+
+// =====================================================================
+// MODAL DE ALERTAS DE STOCK BAIXO (Patch 12)
+// =====================================================================
+
+function openLowStockModal() {
+  if (!els.lowStockModalList) return;
+
+  const lows = state.products
+    .filter((p) => Number(p.stock || 0) <= Number(p.minStock || 0))
+    .sort((a, b) => (Number(a.stock) - Number(a.minStock)) - (Number(b.stock) - Number(b.minStock)));
+
+  if (lows.length === 0) {
+    els.lowStockModalList.innerHTML = '<div class="item empty-state"><strong>Sem alertas</strong><span>Todos os produtos estão acima do mínimo.</span></div>';
+  } else {
+    els.lowStockModalList.innerHTML = lows.map((p) => {
+      const stockDisplay = p.category === 'RL' ? money(p.stock) : p.stock + ' un.';
+      const minDisplay = p.category === 'RL' ? money(p.minStock) : p.minStock + ' un.';
+      return `
+        <div class="item">
+          <div class="stock-warning-item">
+            <div style="flex:1;min-width:0;">
+              <strong>${esc(p.name)}</strong>
+              <small>${esc(p.category === 'RL' ? 'Recarga' : 'Cartão')} • Mín: ${esc(minDisplay)}</small>
+            </div>
+            <span class="stock-warning-badge">${esc(stockDisplay)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const modal = document.getElementById('lowStockModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+// Delegação: clique em qualquer cartão com data-action
+els.statsGrid?.addEventListener('click', (e) => {
+  const card = e.target.closest('[data-action]');
+  if (!card) return;
+  const action = card.dataset.action;
+  if (action === 'openLowStockModal') {
+    openLowStockModal();
+  }
+});
+
+// Fechar modal de alertas
+document.getElementById('lowStockModal')?.addEventListener('click', (e) => {
+  if (e.target.closest('.close-modal')) {
+    e.target.closest('.modal').classList.add('hidden');
+    return;
+  }
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.add('hidden');
+  }
+});
+
+// ESC fecha o modal de alertas
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const m = document.getElementById('lowStockModal');
+    if (m && !m.classList.contains('hidden')) m.classList.add('hidden');
   }
 });
 

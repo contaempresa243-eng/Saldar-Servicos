@@ -146,13 +146,7 @@
       </div>
     </header>
 
-    <section class="hero-card">
-      <div>
-        <h2>Versão 13 com auditoria e sessão segura</h2>
-        <p>Sistema completo com auditoria, expiração de sessão por inatividade (30 min), backup, gestão de usuários, filtros de produtos e relatórios por período.</p>
-      </div>
-      <div class="hero-chip">AOA</div>
-    </section>
+    
 
     <section class="stats-grid" id="statsGrid"></section>
 
@@ -161,7 +155,7 @@
   <button class="group-tab active" data-group="painel" type="button">📊 Painel</button>
   <button class="group-tab" data-group="operacoes" type="button">🛒 Operações</button>
   <button class="group-tab" data-group="gestao" type="button">👥 Gestão</button>
-  <button class="group-tab" data-group="sistema" type="button">⚙️ Sistema</button>
+  <button class="group-tab" data-group="sistema" type="button" data-role="admin">⚙️ Sistema</button>
 </nav>
 
 <!-- Sub-tabs (nível 2) — apenas do grupo ativo -->
@@ -179,7 +173,7 @@
   <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
 
   <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
-  <button class="tab" data-tab="nuvem" data-group="sistema">Nuvem</button>
+  <button class="tab" data-tab="nuvem" data-group="sistema" data-role="admin">Nuvem</button>
 </nav>
 
     <main>
@@ -439,7 +433,17 @@
       <button type="button" class="primary" onclick="window.__saldarContinueSession()" style="width: 100%;">Continuar sessão</button>
     </div>
   </div>
-
+  
+<!-- Modal de alertas de stock baixo -->
+<div id="lowStockModal" class="modal hidden">
+  <div class="modal-content receipt-modal-content">
+    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+    <h3 style="margin: 0 0 8px; color: var(--warning); text-align:center;">⚠️ Alertas de stock baixo</h3>
+    <p class="mini-text" style="text-align:center; margin: 0 0 16px;">Produtos com stock igual ou abaixo do mínimo definido.</p>
+    <div id="lowStockModalList" class="list"></div>
+  </div>
+</div>
+  
   <!-- Modal de recibo (Patch 11) -->
 <div id="receiptModal" class="modal hidden">
   <div class="modal-content receipt-modal-content">
