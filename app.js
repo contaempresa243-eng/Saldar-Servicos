@@ -503,13 +503,13 @@ function applyPermissions() {
     el.classList.toggle('hidden', !can(el.dataset.perm));
   });
 
-  // Esconder grupos que não têm nenhuma sub-tab visível
-  document.querySelectorAll('.group-tab').forEach((groupBtn) => {
-    const group = groupBtn.dataset.group;
-    const visibleTabs = Array.from(document.querySelectorAll(`.tab[data-group="${group}"]`))
-      .filter((t) => !t.classList.contains('hidden'));
-    groupBtn.classList.toggle('hidden', visibleTabs.length === 0);
-  });
+  // Esconder grupos que não têm nenhuma sub-tab permitida
+document.querySelectorAll('.group-tab').forEach((groupBtn) => {
+  const group = groupBtn.dataset.group;
+  const allowedTabs = Array.from(document.querySelectorAll(`.tab[data-group="${group}"]`))
+    .filter((t) => can(t.dataset.tab));
+  groupBtn.classList.toggle('hidden', allowedTabs.length === 0);
+});
 
     // Se o tab ativo já não é acessível, voltar ao dashboard
   const activeTab = document.querySelector('.tab.active')?.dataset.tab;
