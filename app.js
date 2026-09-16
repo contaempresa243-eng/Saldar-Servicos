@@ -82,11 +82,12 @@ function defaults() {
     history: [],
     cashMovements: [],
     users: [
-      { id: uid(), fullName: 'Administrador Geral', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt: now() },
-      { id: uid(), fullName: 'Operador de Balcão', username: 'operador', password: '1234', role: 'operador', active: true, createdAt: now() }
-    ],
-    currentUserId: null,
-    auditLog: []
+  { id: uid(), fullName: 'Administrador Geral', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt: now() },
+  { id: uid(), fullName: 'Operador de Balcão', username: 'operador', password: '1234', role: 'operador', active: true, createdAt: now() }
+],
+currentUserId: null,
+auditLog: [],
+clients: []
   };
 }
 
@@ -98,7 +99,8 @@ function normalize(raw) {
     cashMovements: Array.isArray(raw?.cashMovements) ? raw.cashMovements : [],
     users: Array.isArray(raw?.users) && raw.users.length ? raw.users : base.users,
     currentUserId: raw?.currentUserId || null,
-    auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : []
+    auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : [],
+    clients: Array.isArray(raw?.clients) ? raw.clients : []
   };
 }
 
@@ -311,7 +313,33 @@ const els = {
   cartItemCount: document.getElementById('cartItemCount'),
   clearCartBtn: document.getElementById('clearCartBtn'),
   finalizeSaleBtn: document.getElementById('finalizeSaleBtn'),
-  lowStockModalList: document.getElementById('lowStockModalList')
+    lowStockModalList: document.getElementById('lowStockModalList'),
+  clientForm: document.getElementById('clientForm'),
+  clientEditId: document.getElementById('clientEditId'),
+  clientName: document.getElementById('clientName'),
+  clientPhone: document.getElementById('clientPhone'),
+  clientEmail: document.getElementById('clientEmail'),
+  clientNif: document.getElementById('clientNif'),
+  clientNotes: document.getElementById('clientNotes'),
+  clientSearch: document.getElementById('clientSearch'),
+  clientCards: document.getElementById('clientCards'),
+  clientFormMode: document.getElementById('clientFormMode'),
+  cancelClientEditBtn: document.getElementById('cancelClientEditBtn'),
+  saleClient: document.getElementById('saleClient'),
+  pickClientBtn: document.getElementById('pickClientBtn'),
+  pickClientModal: document.getElementById('pickClientModal'),
+  pickClientSearch: document.getElementById('pickClientSearch'),
+  pickClientList: document.getElementById('pickClientList'),
+  pickClientNoneBtn: document.getElementById('pickClientNoneBtn'),
+  pickClientNewBtn: document.getElementById('pickClientNewBtn'),
+  newClientModal: document.getElementById('newClientModal'),
+  quickClientName: document.getElementById('quickClientName'),
+  quickClientPhone: document.getElementById('quickClientPhone'),
+  quickClientNif: document.getElementById('quickClientNif'),
+  quickClientCancelBtn: document.getElementById('quickClientCancelBtn'),
+  quickClientSaveBtn: document.getElementById('quickClientSaveBtn'),
+  clientHistoryModal: document.getElementById('clientHistoryModal'),
+  clientHistoryContent: document.getElementById('clientHistoryContent')
 };
 
 function toast(message, duration = 8000) {
@@ -1063,6 +1091,54 @@ function renderUsers() {
     : '<div class="item empty-state">Sem usuários cadastrados.</div>';
 }
 
+// =====================================================================
+// CLIENTES — Render (Patch 13)
+// =====================================================================
+
+function renderClients() {
+  if (!els.clientCards) return;
+
+  const term = (els.clientSearch?.value || '').trim().toLowerCase();
+  const all = Array.isArray(state.clients) ? state.clients : [];
+
+  const filtered = term
+    ? all.filter((c) =>
+        (c.name || '').toLowerCase().includes(term) ||
+        (c.phone || '').toLowerCase().includes(term) ||
+        (c.nif || '').toLowerCase().includes(term)
+      )
+    : all;
+
+  filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  if (filtered.length === 0) {
+    els.clientCards.innerHTML = '<div class="item empty-state">Nenhum cliente encontrado.</div>';
+    return;
+  }
+
+  els.clientCards.innerHTML = filtered.map((c) => {
+    const sales = (state.history || []).filter((h) => h.clientId === c.id);
+    const salesCount = sales.length;
+    const totalSpent = sales.reduce((s, h) => s + Number(h.total || 0), 0);
+
+    return `
+      <div class="item" data-action="view-client" data-id="${esc(c.id)}">
+        <div class="client-card-row">
+          <div class="client-card-info">
+            <strong>${esc(c.name)}</strong>
+            ${c.phone ? `<small>📞 ${esc(c.phone)}</small>` : ''}
+            ${c.nif ? `<small>NIF: ${esc(c.nif)}</small>` : ''}
+          </div>
+          <div class="client-card-meta">
+            <span class="badge info">${salesCount} ${salesCount === 1 ? 'venda' : 'vendas'}</span>
+            <span class="badge">${money(totalSpent)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderCloudPanel() {
   if (!els.cloudPanel) return;
   if (!can('nuvem')) {
@@ -1171,6 +1247,7 @@ function renderAll() {
   try { renderCloudPanel(); } catch (e) { _origConsoleError('[renderCloudPanel]', e); }
   try { renderDashboardFinanceiro(); } catch (e) { _origConsoleError('[renderDashboardFinanceiro]', e); }
   try { renderAuditLog(); } catch (e) { _origConsoleError('[renderAuditLog]', e); }
+  try { renderClients(); } catch (e) { _origConsoleError('[renderClients]', e); }
 }
 // =====================================================================
 // Forms
@@ -1825,7 +1902,9 @@ async function finalizeSale() {
   if (!user) return;
 
   const paymentMethod = els.saleMethod?.value || 'dinheiro';
-  const note = els.saleNote?.value.trim() || '';
+const note = els.saleNote?.value.trim() || '';
+const clientId = els.saleClient?.dataset.clientId || '';
+const clientName = els.saleClient?.value.trim() || '';
 
   // VALIDAÇÃO: verificar stock de cada item
   for (const item of cart.items) {
@@ -1864,19 +1943,21 @@ async function finalizeSale() {
     const saleId = uid();
     saleIds.push(saleId);
     state.history.push({
-      id: saleId,
-      type: 'venda',
-      productId: product.id,
-      productName: product.name,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      total: item.total,
-      paymentMethod,
-      note,
-      createdById: user.id,
-      createdByName: user.fullName,
-      date: saleDate
-    });
+  id: saleId,
+  type: 'venda',
+  productId: product.id,
+  productName: product.name,
+  quantity: item.quantity,
+  unitPrice: item.unitPrice,
+  total: item.total,
+  paymentMethod,
+  note,
+  clientId,
+  clientName,
+  createdById: user.id,
+  createdByName: user.fullName,
+  date: saleDate
+});
   }
 
   const grandTotal = cart.items.reduce((s, i) => s + Number(i.total || 0), 0);
@@ -1895,6 +1976,8 @@ async function finalizeSale() {
     grandTotal,
     paymentMethod,
     note,
+    clientId,
+    clientName,
     multiItem: true
   });
 
@@ -1905,6 +1988,11 @@ async function finalizeSale() {
   syncPrice();
   updateSaleHint();
 
+// Limpar cliente selecionado
+if (els.saleClient) {
+  els.saleClient.value = '';
+  delete els.saleClient.dataset.clientId;
+}
   renderAll();
 
   toast(`Venda registada: ${money(grandTotal)}`, 5000);
@@ -2000,6 +2088,79 @@ document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
   renderAll();
   toast('Movimento de caixa registrado.');
 });
+
+
+// =====================================================================
+// CLIENTES — Patch 13
+// =====================================================================
+
+function resetClientForm() {
+  els.clientForm?.reset();
+  if (els.clientEditId) els.clientEditId.value = '';
+  if (els.clientFormMode) els.clientFormMode.textContent = 'Novo cliente';
+}
+
+function fillClientForm(id) {
+  const client = (state.clients || []).find(c => c.id === id);
+  if (!client) return toast('Cliente não encontrado.');
+
+  els.clientEditId.value = client.id;
+  els.clientName.value = client.name || '';
+  els.clientPhone.value = client.phone || '';
+  els.clientEmail.value = client.email || '';
+  els.clientNif.value = client.nif || '';
+  els.clientNotes.value = client.notes || '';
+  els.clientFormMode.textContent = 'Editando cliente';
+  activate('clientes');
+}
+
+async function saveClientFromForm(payload, editingId) {
+  if (!state.clients) state.clients = [];
+
+  if (editingId) {
+    const client = state.clients.find(c => c.id === editingId);
+    if (!client) return toast('Cliente não encontrado.');
+    Object.assign(client, payload);
+    await saveState();
+    await logAudit('client-editar', {
+      clientId: editingId,
+      name: payload.name,
+      phone: payload.phone || '',
+      nif: payload.nif || ''
+    });
+    return client;
+  }
+
+  if (payload.phone) {
+    const dup = state.clients.find(c => (c.phone || '').trim() === payload.phone.trim());
+    if (dup) {
+      toast('Já existe um cliente com esse telefone.');
+      return null;
+    }
+  }
+
+  const newClient = {
+    id: uid(),
+    name: payload.name,
+    phone: payload.phone || '',
+    email: payload.email || '',
+    nif: payload.nif || '',
+    notes: payload.notes || '',
+    createdAt: now(),
+    createdById: getCurrentUser()?.id || '',
+    createdByName: getCurrentUser()?.fullName || ''
+  };
+
+  state.clients.push(newClient);
+  await saveState();
+  await logAudit('client-criar', {
+    clientId: newClient.id,
+    name: newClient.name,
+    phone: newClient.phone,
+    nif: newClient.nif
+  });
+  return newClient;
+}
 
 // =====================================================================
 // Utilizadores
@@ -2228,6 +2389,252 @@ els.userList?.addEventListener('click', async (e) => {
     }
   }
 });
+
+// =====================================================================
+// CLIENTES — Handlers (Patch 13)
+// =====================================================================
+
+els.clientForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!requireAdmin()) return;
+
+  const editingId = els.clientEditId.value;
+  const payload = {
+    name: els.clientName.value.trim(),
+    phone: els.clientPhone.value.trim(),
+    email: els.clientEmail.value.trim(),
+    nif: els.clientNif.value.trim(),
+    notes: els.clientNotes.value.trim()
+  };
+
+  if (!payload.name) return toast('Preencha o nome do cliente.');
+
+  const result = await saveClientFromForm(payload, editingId);
+  if (!result) return;
+
+  resetClientForm();
+  renderAll();
+  toast(editingId ? 'Cliente atualizado.' : 'Cliente criado.');
+});
+
+els.cancelClientEditBtn?.addEventListener('click', resetClientForm);
+
+els.clientSearch?.addEventListener('input', renderClients);
+
+els.clientCards?.addEventListener('click', (e) => {
+  const card = e.target.closest('[data-action="view-client"]');
+  if (!card) return;
+  const id = card.dataset.id;
+  openClientHistory(id);
+});
+
+// =====================================================================
+// CLIENTES — Modal pick + New + Histórico (Patch 13, parte 2)
+// =====================================================================
+
+function openClientHistory(id) {
+  const client = (state.clients || []).find(c => c.id === id);
+  if (!client) return toast('Cliente não encontrado.');
+
+  const sales = (state.history || [])
+    .filter(h => h.type === 'venda' && h.clientId === id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const totalSpent = sales.reduce((s, h) => s + Number(h.total || 0), 0);
+  const lastSale = sales[0];
+  const lastSaleDate = lastSale ? new Date(lastSale.date).toLocaleDateString('pt-PT') : '—';
+
+  const salesHtml = sales.length
+    ? sales.map(h => `
+        <div class="item" style="margin-bottom:6px;">
+          <div class="product-name-row">
+            <strong>${esc(h.productName)}</strong>
+            <span class="badge">${money(h.total)}</span>
+          </div>
+          <small>${new Date(h.date).toLocaleString('pt-PT')} • ${esc(h.paymentMethod || '')}</small>
+        </div>
+      `).join('')
+    : '<div class="item empty-state">Sem compras registadas.</div>';
+
+  els.clientHistoryContent.innerHTML = `
+    <div class="client-history-header">
+      <h3>${esc(client.name)}</h3>
+      ${client.phone ? `<small>📞 ${esc(client.phone)}</small>` : ''}
+      ${client.nif ? `<small>NIF: ${esc(client.nif)}</small>` : ''}
+      ${client.email ? `<small>✉️ ${esc(client.email)}</small>` : ''}
+      ${client.notes ? `<small>📝 ${esc(client.notes)}</small>` : ''}
+    </div>
+
+    <div class="client-history-summary">
+      <div class="summary-box">
+        <small>Total de compras</small>
+        <strong>${sales.length}</strong>
+      </div>
+      <div class="summary-box">
+        <small>Total gasto</small>
+        <strong>${money(totalSpent)}</strong>
+      </div>
+    </div>
+
+    <div class="client-history-list">
+      ${salesHtml}
+    </div>
+
+    <div class="button-row" style="margin-top:12px;">
+      <button type="button" class="ghost" onclick="window.__editarCliente('${esc(client.id)}')" style="flex:1;">✏️ Editar</button>
+      <button type="button" class="danger-btn" onclick="window.__removerCliente('${esc(client.id)}')" style="flex:1;">🗑️ Remover</button>
+    </div>
+  `;
+
+  els.clientHistoryModal?.classList.remove('hidden');
+}
+
+window.__editarCliente = function(id) {
+  els.clientHistoryModal?.classList.add('hidden');
+  fillClientForm(id);
+};
+
+window.__removerCliente = async function(id) {
+  if (!requireAdmin()) return;
+  const client = (state.clients || []).find(c => c.id === id);
+  if (!client) return;
+  if (!confirm(`Remover cliente "${client.name}"?`)) return;
+
+  state.clients = state.clients.filter(c => c.id !== id);
+  await saveState();
+  await logAudit('client-remover', { clientId: id, name: client.name });
+
+  els.clientHistoryModal?.classList.add('hidden');
+  renderAll();
+  toast('Cliente removido.');
+};
+
+// ---------- Modal de escolher cliente ----------
+
+function renderPickClientList(filter = '') {
+  if (!els.pickClientList) return;
+  const term = String(filter || '').trim().toLowerCase();
+  const all = Array.isArray(state.clients) ? state.clients : [];
+
+  const filtered = term
+    ? all.filter(c =>
+        (c.name || '').toLowerCase().includes(term) ||
+        (c.phone || '').toLowerCase().includes(term) ||
+        (c.nif || '').toLowerCase().includes(term)
+      )
+    : all.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  if (filtered.length === 0) {
+    els.pickClientList.innerHTML = '<div class="item empty-state">Nenhum cliente encontrado.</div>';
+    return;
+  }
+
+  els.pickClientList.innerHTML = filtered.slice(0, 100).map(c => `
+    <div class="item" data-client-pick="${esc(c.id)}" style="cursor:pointer;">
+      <div class="pick-client-row">
+        <div class="pick-client-info">
+          <strong>${esc(c.name)}</strong>
+          ${c.phone ? `<small>📞 ${esc(c.phone)}</small>` : ''}
+          ${c.nif ? `<small>NIF: ${esc(c.nif)}</small>` : ''}
+        </div>
+        <span class="badge info">Escolher</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openPickClientModal() {
+  renderPickClientList('');
+  if (els.pickClientSearch) els.pickClientSearch.value = '';
+  els.pickClientModal?.classList.remove('hidden');
+}
+
+els.pickClientBtn?.addEventListener('click', openPickClientModal);
+els.pickClientSearch?.addEventListener('input', (e) => renderPickClientList(e.target.value));
+
+els.pickClientList?.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-client-pick]');
+  if (!row) return;
+  const clientId = row.dataset.clientPick;
+  const client = (state.clients || []).find(c => c.id === clientId);
+  if (!client) return;
+  if (els.saleClient) els.saleClient.value = client.name;
+  els.saleClient.dataset.clientId = client.id;
+  els.pickClientModal?.classList.add('hidden');
+  toast(`Cliente: ${client.name}`, 3000);
+});
+
+els.pickClientNoneBtn?.addEventListener('click', () => {
+  if (els.saleClient) {
+    els.saleClient.value = '';
+    delete els.saleClient.dataset.clientId;
+  }
+  els.pickClientModal?.classList.add('hidden');
+});
+
+els.pickClientNewBtn?.addEventListener('click', () => {
+  els.pickClientModal?.classList.add('hidden');
+  if (els.quickClientName) els.quickClientName.value = '';
+  if (els.quickClientPhone) els.quickClientPhone.value = '';
+  if (els.quickClientNif) els.quickClientNif.value = '';
+  els.newClientModal?.classList.remove('hidden');
+  setTimeout(() => els.quickClientName?.focus(), 200);
+});
+
+// ---------- Modal de novo cliente rápido ----------
+
+els.quickClientCancelBtn?.addEventListener('click', () => {
+  els.newClientModal?.classList.add('hidden');
+});
+
+els.quickClientSaveBtn?.addEventListener('click', async () => {
+  const name = els.quickClientName?.value.trim();
+  const phone = els.quickClientPhone?.value.trim();
+  const nif = els.quickClientNif?.value.trim();
+  if (!name) return toast('Informe o nome do cliente.');
+
+  const result = await saveClientFromForm({ name, phone, email: '', nif, notes: '' }, '');
+  if (!result) return;
+
+  if (els.saleClient) {
+    els.saleClient.value = result.name;
+    els.saleClient.dataset.clientId = result.id;
+  }
+
+  els.newClientModal?.classList.add('hidden');
+  renderAll();
+  toast(`Cliente ${result.name} criado.`);
+});
+
+// ---------- Fechar modais (delegação) ----------
+
+['pickClientModal', 'newClientModal', 'clientHistoryModal'].forEach((modalId) => {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.addEventListener('click', (e) => {
+    if (e.target.closest('.close-modal') || e.target.classList.contains('modal')) {
+      modal.classList.add('hidden');
+    }
+  });
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  ['pickClientModal', 'newClientModal', 'clientHistoryModal'].forEach((modalId) => {
+    const modal = document.getElementById(modalId);
+    if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden');
+  });
+});
+
+// =====================================================================
+// ✅ Bónus: garantir que o botão "Cancelar" do formulário de utilizadores também está ligado
+// (caso não esteja noutro sítio)
+// =====================================================================
+
+if (els.cancelUserEditBtn && !els.cancelUserEditBtn.dataset.bound) {
+  els.cancelUserEditBtn.dataset.bound = '1';
+  els.cancelUserEditBtn.addEventListener('click', resetUserForm);
+}
 
 // =====================================================================
 // Backup

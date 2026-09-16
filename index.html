@@ -169,6 +169,7 @@
 
   <button class="tab" data-tab="produtos" data-group="gestao" data-role="admin">Produtos</button>
   <button class="tab" data-tab="usuarios" data-group="gestao" data-role="admin">Usuários</button>
+  <button class="tab" data-tab="clientes" data-group="gestao" data-role="admin">Clientes</button>
   <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
   <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
 
@@ -254,7 +255,13 @@
         <option value="transferencia">Transferência</option>
         <option value="multicaixa">Multicaixa</option>
       </select></label>
-      <label class="full-span">Cliente / nota<input type="text" id="saleNote" placeholder="Opcional" /></label>
+      <label class="full-span">Cliente
+  <div class="client-picker-row">
+    <input type="text" id="saleClient" placeholder="Nome do cliente (opcional)" />
+    <button type="button" class="ghost" id="pickClientBtn">📋 Escolher</button>
+  </div>
+</label>
+<label class="full-span">Observação<input type="text" id="saleNote" placeholder="Observação sobre a venda (opcional)" /></label>
       <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
       <button class="primary full-span" type="submit">➕ Adicionar ao carrinho</button>
     </form>
@@ -328,7 +335,40 @@
           <button class="primary full-span" id="exportPdfBtn" data-perm="relatorio" style="margin-top: 16px;">📄 Exportar Relatório PDF</button>
         </div>
       </section>
-
+      
+      <section class="tab-panel" id="clientes">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Cadastro de clientes</h3>
+        <p class="mini-text">Crie e edite clientes. Cada venda associada aparece no histórico do cliente.</p>
+      </div>
+      <span class="badge info" id="clientFormMode">Novo cliente</span>
+    </div>
+    <form id="clientForm" class="form-grid">
+      <input type="hidden" id="clientEditId" />
+      <label>Nome completo<input type="text" id="clientName" required /></label>
+      <label>Telefone<input type="tel" id="clientPhone" placeholder="Ex.: +244 9XX XXX XXX" /></label>
+      <label>Email (opcional)<input type="email" id="clientEmail" placeholder="exemplo@email.com" /></label>
+      <label>NIF (opcional)<input type="text" id="clientNif" placeholder="Ex.: 0000000000" /></label>
+      <label class="full-span">Notas<input type="text" id="clientNotes" placeholder="Observações sobre o cliente" /></label>
+      <div class="button-row full-span">
+        <button class="primary" type="submit">Guardar cliente</button>
+        <button class="ghost" type="button" id="cancelClientEditBtn">Cancelar edição</button>
+      </div>
+    </form>
+  </div>
+  <div class="card">
+    <div class="section-head">
+      <div><h3>Clientes cadastrados</h3><p class="mini-text">Clique num cliente para ver detalhes e histórico.</p></div>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="clientSearch" placeholder="Pesquisar por nome, telefone ou NIF" />
+    </div>
+    <div id="clientCards" class="list compact"></div>
+  </div>
+</section>
+ 
       <section class="tab-panel" id="usuarios">
         <div class="card">
           <h3>Criar / Editar Usuário</h3>
@@ -454,6 +494,45 @@
       <button type="button" class="secondary-btn" onclick="window.print()">🖨️ Imprimir A4</button>
       <button type="button" class="primary" id="sendWhatsAppBtn">📱 WhatsApp</button>
     </div>
+  </div>
+</div>
+  
+<!-- Modal: escolher cliente existente -->
+<div id="pickClientModal" class="modal hidden">
+  <div class="modal-content receipt-modal-content">
+    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+    <h3 style="margin:0 0 12px; text-align:center;">📋 Escolher cliente</h3>
+    <div class="filter-row"><input type="text" id="pickClientSearch" placeholder="Pesquisar por nome, telefone ou NIF" /></div>
+    <div id="pickClientList" class="list" style="max-height:50vh; overflow-y:auto; margin-top:8px;"></div>
+    <div class="button-row" style="margin-top:12px;">
+      <button type="button" class="ghost" id="pickClientNoneBtn" style="flex:1;">Sem cliente / Avulso</button>
+      <button type="button" class="primary" id="pickClientNewBtn" style="flex:1;">➕ Novo cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: criar cliente rápido (durante a venda) -->
+<div id="newClientModal" class="modal hidden">
+  <div class="modal-content" style="max-width: 380px;">
+    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+    <h3 style="margin:0 0 12px; text-align:center;">➕ Novo cliente</h3>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <label>Nome completo<input type="text" id="quickClientName" required /></label>
+      <label>Telefone<input type="tel" id="quickClientPhone" placeholder="Opcional" /></label>
+      <label>NIF<input type="text" id="quickClientNif" placeholder="Opcional" /></label>
+    </div>
+    <div class="button-row" style="margin-top:12px;">
+      <button type="button" class="ghost" id="quickClientCancelBtn" style="flex:1;">Cancelar</button>
+      <button type="button" class="primary" id="quickClientSaveBtn" style="flex:1;">Guardar e usar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: histórico de cliente -->
+<div id="clientHistoryModal" class="modal hidden">
+  <div class="modal-content receipt-modal-content">
+    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+    <div id="clientHistoryContent"></div>
   </div>
 </div>
 

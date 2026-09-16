@@ -1174,3 +1174,158 @@ td {
   font-weight: 700;
   white-space: nowrap;
 }
+/* ============================================================
+   PATCH 13 — Clientes (v16)
+   ============================================================ */
+
+.client-picker-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.client-picker-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.client-picker-row button {
+  white-space: nowrap;
+  padding: 0 14px;
+}
+
+#clientCards .item {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#clientCards .item:active {
+  background: #f0fdfa;
+}
+
+.client-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.client-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.client-card-info strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.client-card-info small {
+  color: var(--muted);
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+}
+
+.client-card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.client-card-meta .badge {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+/* Lista de clientes no modal picker */
+#pickClientList .item {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#pickClientList .item:active {
+  background: #f0fdfa;
+}
+
+#pickClientList .pick-client-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+#pickClientList .pick-client-info {
+  flex: 1;
+  min-width: 0;
+}
+
+#pickClientList .pick-client-info strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+#pickClientList .pick-client-info small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Histórico de cliente (modal) */
+.client-history-header {
+  text-align: center;
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.client-history-header h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.client-history-header small {
+  color: var(--muted);
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+}
+
+.client-history-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.client-history-summary .summary-box {
+  background: #f0fdfa;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.client-history-summary .summary-box small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.client-history-summary .summary-box strong {
+  font-size: 15px;
+  color: var(--primary);
+}
+
+.client-history-list {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+/* NIF no recibo */
+.receipt-client-nif {
+  font-size: 10px;
+  color: #333;
+  margin-top: 2px;
+}
