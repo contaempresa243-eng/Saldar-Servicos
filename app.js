@@ -2743,10 +2743,14 @@ window.imprimirRecibo = function(saleId) {
       <p class="receipt-slogan">Gestão simples, resultados reais.</p>
       <hr>
       <div class="receipt-meta">
-        <div>Data: ${esc(date)}</div>
-        <div>Operador: ${esc(sale.createdByName || 'Sistema')}</div>
-        ${sale.note ? `<div>Cliente: ${esc(sale.note)}</div>` : ''}
-      </div>
+  <div>Data: ${esc(date)}</div>
+  <div>Operador: ${esc(sale.createdByName || 'Sistema')}</div>
+  ${sale.clientName ? `<div>Cliente: ${esc(sale.clientName)}</div>` : ''}
+  ${sale.clientId ? (() => {
+    const c = (state.clients || []).find(x => x.id === sale.clientId);
+    return c && c.nif ? `<div class="receipt-client-nif">NIF: ${esc(c.nif)}</div>` : '';
+  })() : ''}
+</div>
       <hr>
       ${itemsHtml}
       <hr>
