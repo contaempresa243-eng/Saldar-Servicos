@@ -339,7 +339,11 @@ const els = {
   quickClientCancelBtn: document.getElementById('quickClientCancelBtn'),
   quickClientSaveBtn: document.getElementById('quickClientSaveBtn'),
   clientHistoryModal: document.getElementById('clientHistoryModal'),
-  clientHistoryContent: document.getElementById('clientHistoryContent')
+  clientHistoryContent: document.getElementById('clientHistoryContent'),
+exportSalesCsvBtn: document.getElementById('exportSalesCsvBtn'),
+exportStockCsvBtn: document.getElementById('exportStockCsvBtn'),
+exportClientsCsvBtn: document.getElementById('exportClientsCsvBtn'),
+exportAuditCsvBtn: document.getElementById('exportAuditCsvBtn')
 };
 
 function toast(message, duration = 8000) {
@@ -1463,6 +1467,195 @@ async function logout() {
   session.currentUser = null;
   saveLocal();
   showApp(false);
+}
+
+// =====================================================================
+// EXPORTAÇÃO CSV — Patch 14
+// =====================================================================
+
+/**
+ * Converte uma lista de objetos em CSV.
+ * Usa ";" como separador (compatível com Excel PT) e BOM UTF-8.
+ */
+function toCsv(rows, headers) {
+  const escapeCell = (v) => {
+    if (v === null || v === undefined) return '';
+    let s = String(v);
+    if (s.includes('"')) s = s.replace(/"/g, '""');
+    if (s.includes(';') || s.includes('\n') || s.includes('\r') || s.includes('"')) {
+      s = '"' + s + '"';
+    }
+    return s;
+  };
+
+  const headerLine = headers.map(h => escapeCell(h.label)).join(';');
+  const dataLines = rows.map(row => headers.map(h => escapeCell(row[h.key])).join(';'));
+  return [headerLine, ...dataLines].join('\r\n');
+}
+
+/**
+ * Descarrega um CSV com BOM UTF-8 (para Excel reconhecer acentos).
+ */
+function downloadCsv(filename, content) {
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function formatCsvDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('pt-PT');
+  } catch {
+    return String(iso);
+  }
+}
+
+async function exportSalesCsv() {
+  if (!requireAdmin()) return;
+
+  const sales = (state.history || [])
+    .filter(h => h.type === 'venda')
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (sales.length === 0) return toast('Sem vendas para exportar.');
+
+  const rows = sales.map(h => ({
+    date: formatCsvDate(h.date),
+    product: h.productName || '',
+    quantity: h.quantity || 0,
+    unitPrice: Number(h.unitPrice || 0).toFixed(2).replace('.', ','),
+    total: Number(h.total || 0).toFixed(2).replace('.', ','),
+    method: h.paymentMethod || '',
+    client: h.clientName || '',
+    note: h.note || '',
+    operator: h.createdByName || ''
+  }));
+
+  const csv = toCsv(rows, [
+    { key: 'date', label: 'Data' },
+    { key: 'product', label: 'Produto' },
+    { key: 'quantity', label: 'Quantidade' },
+    { key: 'unitPrice', label: 'Preço Unitário (AOA)' },
+    { key: 'total', label: 'Total (AOA)' },
+    { key: 'method', label: 'Método' },
+    { key: 'client', label: 'Cliente' },
+    { key: 'note', label: 'Observação' },
+    { key: 'operator', label: 'Operador' }
+  ]);
+
+  downloadCsv(`vendas_${today()}.csv`, csv);
+  await logAudit('export-vendas-csv', { count: rows.length });
+  toast(`${rows.length} vendas exportadas.`);
+}
+
+async function exportStockCsv() {
+  if (!requireAdmin()) return;
+
+  const products = state.products || [];
+  if (products.length === 0) return toast('Sem produtos para exportar.');
+
+  const rows = products.map(p => {
+    const stock = Number(p.stock || 0);
+    const min = Number(p.minStock || 0);
+    let status = 'OK';
+    if (stock <= 0) status = 'Esgotado';
+    else if (stock <= min) status = 'Stock baixo';
+
+    return {
+      name: p.name || '',
+      category: p.category === 'RL' ? 'Recarga' : 'Cartão',
+      stock: p.category === 'RL' ? stock.toFixed(2).replace('.', ',') : stock,
+      minStock: p.category === 'RL' ? min.toFixed(2).replace('.', ',') : min,
+      price: p.category === 'RL' ? 'Variável' : Number(p.price || 0).toFixed(2).replace('.', ','),
+      status
+    };
+  });
+
+  const csv = toCsv(rows, [
+    { key: 'name', label: 'Produto' },
+    { key: 'category', label: 'Categoria' },
+    { key: 'stock', label: 'Stock atual' },
+    { key: 'minStock', label: 'Mínimo' },
+    { key: 'price', label: 'Preço' },
+    { key: 'status', label: 'Estado' }
+  ]);
+
+  downloadCsv(`stock_${today()}.csv`, csv);
+  await logAudit('export-stock-csv', { count: rows.length });
+  toast(`${rows.length} produtos exportados.`);
+}
+
+async function exportClientsCsv() {
+  if (!requireAdmin()) return;
+
+  const clients = state.clients || [];
+  if (clients.length === 0) return toast('Sem clientes para exportar.');
+
+  const rows = clients.map(c => {
+    const sales = (state.history || []).filter(h => h.clientId === c.id);
+    const totalSpent = sales.reduce((s, h) => s + Number(h.total || 0), 0);
+
+    return {
+      name: c.name || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      nif: c.nif || '',
+      notes: c.notes || '',
+      salesCount: sales.length,
+      totalSpent: totalSpent.toFixed(2).replace('.', ','),
+      createdAt: formatCsvDate(c.createdAt)
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+
+  const csv = toCsv(rows, [
+    { key: 'name', label: 'Nome' },
+    { key: 'phone', label: 'Telefone' },
+    { key: 'email', label: 'Email' },
+    { key: 'nif', label: 'NIF' },
+    { key: 'notes', label: 'Notas' },
+    { key: 'salesCount', label: 'Nº Compras' },
+    { key: 'totalSpent', label: 'Total Gasto (AOA)' },
+    { key: 'createdAt', label: 'Criado em' }
+  ]);
+
+  downloadCsv(`clientes_${today()}.csv`, csv);
+  await logAudit('export-clientes-csv', { count: rows.length });
+  toast(`${rows.length} clientes exportados.`);
+}
+
+async function exportAuditCsv() {
+  if (!requireAdmin()) return;
+
+  const logs = state.auditLog || [];
+  if (logs.length === 0) return toast('Sem auditoria para exportar.');
+
+  const rows = logs.slice().reverse().map(l => ({
+    date: formatCsvDate(l.date),
+    action: l.action || '',
+    userName: l.userName || '',
+    userRole: l.userRole || '',
+    details: l.details ? JSON.stringify(l.details) : ''
+  }));
+
+  const csv = toCsv(rows, [
+    { key: 'date', label: 'Data' },
+    { key: 'action', label: 'Ação' },
+    { key: 'userName', label: 'Utilizador' },
+    { key: 'userRole', label: 'Perfil' },
+    { key: 'details', label: 'Detalhes' }
+  ]);
+
+  downloadCsv(`auditoria_${today()}.csv`, csv);
+  await logAudit('export-auditoria-csv', { count: rows.length });
+  toast(`${rows.length} registos exportados.`);
 }
 
 // =====================================================================
@@ -2635,6 +2828,15 @@ if (els.cancelUserEditBtn && !els.cancelUserEditBtn.dataset.bound) {
   els.cancelUserEditBtn.dataset.bound = '1';
   els.cancelUserEditBtn.addEventListener('click', resetUserForm);
 }
+
+// =====================================================================
+// EXPORTAÇÃO CSV — Listeners (Patch 14)
+// =====================================================================
+
+els.exportSalesCsvBtn?.addEventListener('click', exportSalesCsv);
+els.exportStockCsvBtn?.addEventListener('click', exportStockCsv);
+els.exportClientsCsvBtn?.addEventListener('click', exportClientsCsv);
+els.exportAuditCsvBtn?.addEventListener('click', exportAuditCsv);
 
 // =====================================================================
 // Backup

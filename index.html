@@ -174,6 +174,7 @@
   <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
 
   <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
+  <button class="tab" data-tab="exportar" data-group="sistema" data-role="admin">Exportar</button>
   <button class="tab" data-tab="nuvem" data-group="sistema" data-role="admin">Nuvem</button>
 </nav>
 
@@ -423,6 +424,47 @@
           </div>
         </div>
       </section>
+
+      <section class="tab-panel" id="exportar">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>📊 Exportação CSV</h3>
+        <p class="mini-text">Exporte os dados para Excel, Google Sheets ou outro programa. Formato compatível com Excel em português (separador <strong>;</strong>).</p>
+      </div>
+    </div>
+    <div class="list">
+      <div class="item">
+        <strong>📊 Vendas</strong>
+        <span>Histórico completo de vendas com cliente, produto, quantidade, valor e operador.</span>
+        <div class="card-actions">
+          <button type="button" class="primary" id="exportSalesCsvBtn">Exportar Vendas (CSV)</button>
+        </div>
+      </div>
+      <div class="item">
+        <strong>📦 Stock</strong>
+        <span>Estado atual do stock com produto, categoria, quantidades, mínimo e preço.</span>
+        <div class="card-actions">
+          <button type="button" class="primary" id="exportStockCsvBtn">Exportar Stock (CSV)</button>
+        </div>
+      </div>
+      <div class="item">
+        <strong>👥 Clientes</strong>
+        <span>Lista de clientes com contactos, NIF e estatísticas de compra.</span>
+        <div class="card-actions">
+          <button type="button" class="primary" id="exportClientsCsvBtn">Exportar Clientes (CSV)</button>
+        </div>
+      </div>
+      <div class="item">
+        <strong>📋 Auditoria</strong>
+        <span>Registo completo das ações do sistema com utilizador, ação e data.</span>
+        <div class="card-actions">
+          <button type="button" class="primary" id="exportAuditCsvBtn">Exportar Auditoria (CSV)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
       <section class="tab-panel" id="auditoria">
         <div class="card">
