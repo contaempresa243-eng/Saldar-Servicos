@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Saldar Serviços • Versão 20</title>
+  <title>Saldar Serviços • Versão 21</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
@@ -237,6 +237,9 @@
             <label>Stock inicial<input type="number" id="productStock" min="0" step="0.01" required /></label>
             <label>Alerta mínimo<input type="number" id="productMinStock" min="0" step="0.01" required /></label>
             <label>Preço padrão (AOA) — apenas CF<input type="number" id="productPrice" min="0" step="0.01" value="0" /></label>
+            <label>Preço de grosso (AOA)<input type="number" id="productPriceWholesale" min="0" step="0.01" value="0" placeholder="Preço quando compra em quantidade" /></label>
+<label>Qtd. mínima para grosso<input type="number" id="productWholesaleQty" min="1" step="1" value="5" /></label>
+<label>Preço VIP (AOA)<input type="number" id="productPriceVip" min="0" step="0.01" value="0" placeholder="Preço para clientes VIP" /></label>
             <div class="button-row full-span">
               <button class="primary" type="submit">Salvar produto</button>
               <button class="ghost" type="button" id="cancelProductEditBtn">Cancelar edição</button>
@@ -302,6 +305,7 @@
             </label>
             <label class="full-span">Observação<input type="text" id="saleNote" placeholder="Observação sobre a venda (opcional)" /></label>
             <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
+            <div class="info-inline full-span hidden" id="salePriceHint">—</div>
             <button class="primary full-span" type="submit">➕ Adicionar ao carrinho</button>
           </form>
         </div>
@@ -402,6 +406,10 @@
             <label>Telefone<input type="tel" id="clientPhone" placeholder="Ex.: +244 9XX XXX XXX" /></label>
             <label>Email (opcional)<input type="email" id="clientEmail" placeholder="exemplo@email.com" /></label>
             <label>NIF (opcional)<input type="text" id="clientNif" placeholder="Ex.: 0000000000" /></label>
+            <label class="toggle-line full-span">
+  <input type="checkbox" id="clientVip" />
+  <span>⭐ Cliente VIP (aplica preço especial)</span>
+            </label>
             <label class="full-span">Notas<input type="text" id="clientNotes" placeholder="Observações sobre o cliente" /></label>
             <div class="button-row full-span">
               <button class="primary" type="submit">Guardar cliente</button>

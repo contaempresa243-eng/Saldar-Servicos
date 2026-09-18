@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v18)
+// SALDAR SERVIÇOS — app.js (v21)
 // =====================================================================
 
 // ============================================================
@@ -74,17 +74,17 @@ const chartInstances = {
 function defaults() {
   return {
     products: [
-      { id: uid(), name: 'Afrimoney', category: 'RL', stock: 0, minStock: 0, price: 0 },
-      { id: uid(), name: 'Unitel Money', category: 'RL', stock: 0, minStock: 0, price: 0 },
-      { id: uid(), name: 'Unitel mSeller', category: 'RL', stock: 0, minStock: 0, price: 0 },
-      { id: uid(), name: 'ZAP', category: 'RL', stock: 0, minStock: 0, price: 0 },
-      { id: uid(), name: 'DStv', category: 'RL', stock: 0, minStock: 0, price: 0 },
-      { id: uid(), name: 'Africel 1000', category: 'CF', stock: 0, minStock: 0, price: 1000 },
-      { id: uid(), name: 'Africel 500', category: 'CF', stock: 0, minStock: 0, price: 500 },
-      { id: uid(), name: 'Africel 200', category: 'CF', stock: 0, minStock: 0, price: 200 },
-      { id: uid(), name: 'Unitel 1000', category: 'CF', stock: 0, minStock: 0, price: 1000 },
-      { id: uid(), name: 'Unitel 500', category: 'CF', stock: 0, minStock: 0, price: 500 },
-      { id: uid(), name: 'Unitel 200', category: 'CF', stock: 0, minStock: 0, price: 200 }
+      { id: uid(), name: 'Afrimoney', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Unitel Money', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Unitel mSeller', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'ZAP', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'DStv', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Africel 1000', category: 'CF', stock: 0, minStock: 0, price: 1000, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Africel 500', category: 'CF', stock: 0, minStock: 0, price: 500, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Africel 200', category: 'CF', stock: 0, minStock: 0, price: 200, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Unitel 1000', category: 'CF', stock: 0, minStock: 0, price: 1000, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Unitel 500', category: 'CF', stock: 0, minStock: 0, price: 500, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+{ id: uid(), name: 'Unitel 200', category: 'CF', stock: 0, minStock: 0, price: 200, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 }
     ],
     history: [],
     cashMovements: [],
@@ -100,8 +100,18 @@ clients: []
 
 function normalize(raw) {
   const base = defaults();
+  let products = Array.isArray(raw?.products) && raw.products.length ? raw.products : base.products;
+
+  // Patch 17: garantir que todos os produtos têm os campos de multi-preço
+  products = products.map(p => ({
+    ...p,
+    priceWholesale: Number(p.priceWholesale ?? 0),
+    wholesaleQty: Number(p.wholesaleQty ?? 5),
+    priceVip: Number(p.priceVip ?? 0)
+  }));
+
   return {
-    products: Array.isArray(raw?.products) && raw.products.length ? raw.products : base.products,
+    products,
     history: Array.isArray(raw?.history) ? raw.history : [],
     cashMovements: Array.isArray(raw?.cashMovements) ? raw.cashMovements : [],
     users: Array.isArray(raw?.users) && raw.users.length ? raw.users : base.users,
@@ -257,6 +267,9 @@ const els = {
   productStock: document.getElementById('productStock'),
   productMinStock: document.getElementById('productMinStock'),
   productPrice: document.getElementById('productPrice'),
+  productPriceWholesale: document.getElementById('productPriceWholesale'),
+productWholesaleQty: document.getElementById('productWholesaleQty'),
+productPriceVip: document.getElementById('productPriceVip'),
   productSearch: document.getElementById('productSearch'),
   productCards: document.getElementById('productCards'),
   productFormMode: document.getElementById('productFormMode'),
@@ -272,6 +285,7 @@ const els = {
   saleMethod: document.getElementById('saleMethod'),
   saleNote: document.getElementById('saleNote'),
   saleStockHint: document.getElementById('saleStockHint'),
+  salePriceHint: document.getElementById('salePriceHint'),
   historyList: document.getElementById('historyList'),
   historyFilter: document.getElementById('historyFilter'),
   dailyReport: document.getElementById('dailyReport'),
@@ -327,6 +341,7 @@ const els = {
   clientPhone: document.getElementById('clientPhone'),
   clientEmail: document.getElementById('clientEmail'),
   clientNif: document.getElementById('clientNif'),
+  clientVip: document.getElementById('clientVip'),
   clientNotes: document.getElementById('clientNotes'),
   clientSearch: document.getElementById('clientSearch'),
   clientCards: document.getElementById('clientCards'),
@@ -1271,7 +1286,15 @@ try { renderCharts(); } catch (e) { _origConsoleError('[renderCharts]', e); }
 
 function syncPrice() {
   const product = byId(els.saleProduct?.value);
-  if (product && els.salePrice) els.salePrice.value = product.price;
+  if (!product) return;
+
+  // Patch 17: aplica preço consoante quantidade/cliente
+  const qty = Number(els.saleQty?.value || 1);
+  const isVip = isCurrentSaleClientVip();
+  const result = getApplicablePrice(product, qty, isVip);
+
+  if (els.salePrice) els.salePrice.value = result.price;
+  updateSalePriceHint();
 }
 
 function syncMin() {
@@ -1294,6 +1317,10 @@ function resetProductForm() {
   els.productForm?.reset();
   if (els.productEditId) els.productEditId.value = '';
   if (els.productFormMode) els.productFormMode.textContent = 'Novo produto';
+  // Patch 17: resetar os campos de multi-preço para os defaults
+  if (els.productPriceWholesale) els.productPriceWholesale.value = '0';
+  if (els.productWholesaleQty) els.productWholesaleQty.value = '5';
+  if (els.productPriceVip) els.productPriceVip.value = '0';
 }
 
 function fillProductForm(id) {
@@ -1305,6 +1332,10 @@ function fillProductForm(id) {
   els.productStock.value = product.stock;
   els.productMinStock.value = product.minStock;
   els.productPrice.value = product.price;
+  // Patch 17: preencher os campos de multi-preço
+  if (els.productPriceWholesale) els.productPriceWholesale.value = product.priceWholesale ?? 0;
+  if (els.productWholesaleQty) els.productWholesaleQty.value = product.wholesaleQty ?? 5;
+  if (els.productPriceVip) els.productPriceVip.value = product.priceVip ?? 0;
   els.productFormMode.textContent = 'Editando produto';
   activate('produtos');
 }
@@ -2158,7 +2189,10 @@ els.productForm?.addEventListener('submit', async (e) => {
     category: els.productCategory.value,
     stock: Number(els.productStock.value),
     minStock: Number(els.productMinStock.value),
-    price: Number(els.productPrice.value)
+    price: Number(els.productPrice.value),
+    priceWholesale: Number(els.productPriceWholesale?.value || 0),
+wholesaleQty: Number(els.productWholesaleQty?.value || 5),
+priceVip: Number(els.productPriceVip?.value || 0)
   };
 
   if (!payload.name) return toast('Preencha o nome do produto.');
@@ -2259,6 +2293,74 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   renderAll();
   toast('Entrada de stock registrada com sucesso.');
 });
+
+// =====================================================================
+// PATCH 17 — Aplicar preço conforme quantidade/cliente
+// =====================================================================
+
+/**
+ * Devolve o preço aplicável para um produto, dada a quantidade e o cliente.
+ * Prioridade: VIP > Grosso > Normal.
+ * Devolve { price, label, badgeClass }.
+ */
+function getApplicablePrice(product, qty, isVipClient) {
+  if (!product) return { price: 0, label: 'Sem produto', badgeClass: 'normal' };
+
+  const priceNormal = Number(product.price || 0);
+  const priceWholesale = Number(product.priceWholesale || 0);
+  const priceVip = Number(product.priceVip || 0);
+  const wholesaleQty = Number(product.wholesaleQty || 5);
+
+  // VIP tem prioridade máxima
+  if (isVipClient && priceVip > 0) {
+    return { price: priceVip, label: '⭐ Preço VIP', badgeClass: 'vip' };
+  }
+
+  // Grosso por quantidade
+  if (priceWholesale > 0 && qty >= wholesaleQty) {
+    return { price: priceWholesale, label: `📦 Preço grosso (${wholesaleQty}+ un.)`, badgeClass: 'wholesale' };
+  }
+
+  // Normal
+  return { price: priceNormal, label: 'Preço normal', badgeClass: 'normal' };
+}
+
+/**
+ * Verifica se o cliente selecionado é VIP.
+ */
+function isCurrentSaleClientVip() {
+  const clientId = els.saleClient?.dataset?.clientId;
+  if (!clientId) return false;
+  const client = (state.clients || []).find(c => c.id === clientId);
+  return client?.vip === true;
+}
+
+/**
+ * Atualiza o badge de preço do formulário de venda.
+ */
+function updateSalePriceHint() {
+  if (!els.salePriceHint) return;
+
+  const product = byId(els.saleProduct?.value);
+  if (!product) {
+    els.salePriceHint.classList.add('hidden');
+    return;
+  }
+
+  const qty = Number(els.saleQty?.value || 1);
+  const isVip = isCurrentSaleClientVip();
+  const result = getApplicablePrice(product, qty, isVip);
+
+  // Aplicar automaticamente o preço ao input
+  if (els.salePrice) els.salePrice.value = result.price;
+
+  // Mostrar badge
+  els.salePriceHint.classList.remove('hidden');
+  els.salePriceHint.innerHTML = `
+    <span class="price-badge ${result.badgeClass}">${result.label}</span>
+    <span style="color:var(--muted); font-size:12px;">${money(result.price)} / unidade</span>
+  `;
+}
 
 // =====================================================================
 // CARRINHO — Funções (Patch 10)
@@ -2552,6 +2654,7 @@ function resetClientForm() {
   els.clientForm?.reset();
   if (els.clientEditId) els.clientEditId.value = '';
   if (els.clientFormMode) els.clientFormMode.textContent = 'Novo cliente';
+  if (els.clientVip) els.clientVip.checked = false;
 }
 
 function fillClientForm(id) {
@@ -2564,6 +2667,7 @@ function fillClientForm(id) {
   els.clientEmail.value = client.email || '';
   els.clientNif.value = client.nif || '';
   els.clientNotes.value = client.notes || '';
+  if (els.clientVip) els.clientVip.checked = client.vip === true;
   els.clientFormMode.textContent = 'Editando cliente';
   activate('clientes');
 }
@@ -2600,6 +2704,7 @@ async function saveClientFromForm(payload, editingId) {
     email: payload.email || '',
     nif: payload.nif || '',
     notes: payload.notes || '',
+    vip: payload.vip === true,
     createdAt: now(),
     createdById: getCurrentUser()?.id || '',
     createdByName: getCurrentUser()?.fullName || ''
@@ -2858,7 +2963,8 @@ els.clientForm?.addEventListener('submit', async (e) => {
     phone: els.clientPhone.value.trim(),
     email: els.clientEmail.value.trim(),
     nif: els.clientNif.value.trim(),
-    notes: els.clientNotes.value.trim()
+    notes: els.clientNotes.value.trim(),
+    vip: els.clientVip?.checked === true
   };
 
   if (!payload.name) return toast('Preencha o nome do cliente.');
@@ -3015,6 +3121,8 @@ els.pickClientList?.addEventListener('click', (e) => {
   if (els.saleClient) els.saleClient.value = client.name;
   els.saleClient.dataset.clientId = client.id;
   els.pickClientModal?.classList.add('hidden');
+  // Patch 17: recalcular preço se o cliente for VIP
+syncPrice();
   toast(`Cliente: ${client.name}`, 3000);
 });
 
@@ -3119,6 +3227,11 @@ els.importBackupBtn?.addEventListener('click', async () => {
 // =====================================================================
 
 els.saleProduct?.addEventListener('change', () => { syncPrice(); updateSaleHint(); });
+els.saleQty?.addEventListener('input', () => { syncPrice(); });
+els.saleClient?.addEventListener('input', () => {
+  if (!els.saleClient.value.trim()) delete els.saleClient.dataset.clientId;
+  updateSalePriceHint();
+});
 els.stockProduct?.addEventListener('change', syncMin);
 els.historyFilter?.addEventListener('change', renderHistory);
 els.reportRange?.addEventListener('change', renderReport);

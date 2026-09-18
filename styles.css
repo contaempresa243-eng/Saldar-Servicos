@@ -1436,3 +1436,82 @@ td {
     font-size: 16px;
   }
 }
+/* ============================================================
+   PATCH 17 — Multi-preço / Venda por grosso (v21)
+   ============================================================ */
+
+/* Badge de preço aplicado no formulário de venda */
+#salePriceHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+#salePriceHint.hidden {
+  display: none !important;
+}
+
+.price-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.price-badge.normal {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.price-badge.wholesale {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.price-badge.vip {
+  background: #fce7f3;
+  color: #9f1239;
+}
+
+/* Badge dentro do carrinho */
+.cart-item-price-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.cart-item-price-badge.wholesale {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cart-item-price-badge.vip {
+  background: #fce7f3;
+  color: #9f1239;
+}
+
+/* Indicador VIP no cartão do cliente */
+.client-vip-badge {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #7c2d12;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Campos novos do produto mais compactos */
+#productPriceWholesale,
+#productWholesaleQty,
+#productPriceVip {
+  font-size: 14px;
+}
