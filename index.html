@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Saldar Serviços • Versão 18</title>
+  <title>Saldar Serviços • Versão 19</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
   <!-- ========================================================= -->
-  <!-- PÁGINA DE LOGIN (v18)                                       -->
+  <!-- PÁGINA DE LOGIN                                            -->
   <!-- ========================================================= -->
   <section class="auth-shell" id="authShell">
 
@@ -76,7 +77,7 @@
   </section>
 
   <!-- ========================================================= -->
-  <!-- DRAWER (menu lateral) — v11                                 -->
+  <!-- DRAWER (menu lateral)                                       -->
   <!-- ========================================================= -->
   <div class="drawer-overlay hidden" id="drawerOverlay"></div>
   <aside class="drawer" id="drawerMenu" aria-hidden="true">
@@ -146,39 +147,40 @@
       </div>
     </header>
 
-    
-
     <section class="stats-grid" id="statsGrid"></section>
 
     <!-- Grupos de navegação (nível 1) -->
-<nav class="tabs-groups" id="tabGroups">
-  <button class="group-tab active" data-group="painel" type="button">📊 Painel</button>
-  <button class="group-tab" data-group="operacoes" type="button">🛒 Operações</button>
-  <button class="group-tab" data-group="gestao" type="button">👥 Gestão</button>
-  <button class="group-tab" data-group="sistema" type="button" data-role="admin">⚙️ Sistema</button>
-</nav>
+    <nav class="tabs-groups" id="tabGroups">
+      <button class="group-tab active" data-group="painel" type="button">📊 Painel</button>
+      <button class="group-tab" data-group="operacoes" type="button">🛒 Operações</button>
+      <button class="group-tab" data-group="gestao" type="button">👥 Gestão</button>
+      <button class="group-tab" data-group="sistema" type="button" data-role="admin">⚙️ Sistema</button>
+    </nav>
 
-<!-- Sub-tabs (nível 2) — apenas do grupo ativo -->
-<nav class="tabs subtabs" id="tabs">
-  <button class="tab active" data-tab="dashboard" data-group="painel">Painel</button>
+    <!-- Sub-tabs (nível 2) -->
+    <nav class="tabs subtabs" id="tabs">
+      <button class="tab active" data-tab="dashboard" data-group="painel">Painel</button>
 
-  <button class="tab" data-tab="venda" data-group="operacoes">Venda</button>
-  <button class="tab" data-tab="stock" data-group="operacoes" data-role="admin">Stock</button>
-  <button class="tab" data-tab="caixa" data-group="operacoes" data-role="admin">Caixa</button>
-  <button class="tab" data-tab="historico" data-group="operacoes">Histórico</button>
+      <button class="tab" data-tab="venda" data-group="operacoes">Venda</button>
+      <button class="tab" data-tab="stock" data-group="operacoes" data-role="admin">Stock</button>
+      <button class="tab" data-tab="caixa" data-group="operacoes" data-role="admin">Caixa</button>
+      <button class="tab" data-tab="historico" data-group="operacoes">Histórico</button>
 
-  <button class="tab" data-tab="produtos" data-group="gestao" data-role="admin">Produtos</button>
-  <button class="tab" data-tab="usuarios" data-group="gestao" data-role="admin">Usuários</button>
-  <button class="tab" data-tab="clientes" data-group="gestao" data-role="admin">Clientes</button>
-  <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
-  <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
+      <button class="tab" data-tab="produtos" data-group="gestao" data-role="admin">Produtos</button>
+      <button class="tab" data-tab="usuarios" data-group="gestao" data-role="admin">Usuários</button>
+      <button class="tab" data-tab="clientes" data-group="gestao" data-role="admin">Clientes</button>
+      <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
+      <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
 
-  <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
-  <button class="tab" data-tab="exportar" data-group="sistema" data-role="admin">Exportar</button>
-  <button class="tab" data-tab="nuvem" data-group="sistema" data-role="admin">Nuvem</button>
-</nav>
+      <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
+      <button class="tab" data-tab="exportar" data-group="sistema" data-role="admin">Exportar</button>
+      <button class="tab" data-tab="nuvem" data-group="sistema" data-role="admin">Nuvem</button>
+    </nav>
 
     <main>
+      <!-- ===================================================== -->
+      <!-- DASHBOARD                                              -->
+      <!-- ===================================================== -->
       <section class="tab-panel active" id="dashboard">
         <div class="dashboard-grid">
           <div class="card"><h3>Produtos cadastrados</h3><div id="productSummary" class="list compact"></div></div>
@@ -186,17 +188,43 @@
           <div class="card"><h3>Mais vendidos hoje</h3><div id="topSalesList" class="list"></div></div>
           <div class="card"><h3>Pagamentos do dia</h3><div id="paymentSummary" class="list"></div></div>
           <div class="card full-width-card"><h3>Atividade recente</h3><div id="recentActivity" class="list"></div></div>
+
           <div class="card full-width-card" id="financeiroCard" data-perm="verFinanceiro">
             <h3>📊 Dashboard Financeiro</h3>
             <div id="financeiroContent" class="list"></div>
           </div>
+
+          <div class="card full-width-card" data-perm="verFinanceiro">
+            <h3>📅 Comparação mensal</h3>
+            <div id="monthComparison" class="month-comparison"></div>
+          </div>
+
+          <div class="card full-width-card" data-perm="verFinanceiro">
+            <h3>📈 Vendas dos últimos 7 dias</h3>
+            <div class="chart-container">
+              <canvas id="chartSales7d"></canvas>
+            </div>
+          </div>
+
+          <div class="card full-width-card" data-perm="verFinanceiro">
+            <h3>🏆 Top 5 produtos (últimos 30 dias)</h3>
+            <div class="chart-container">
+              <canvas id="chartTopProducts"></canvas>
+            </div>
+          </div>
         </div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- PRODUTOS                                               -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="produtos">
         <div class="card">
           <div class="section-head">
-            <div><h3>Cadastro e edição de produtos</h3><p class="mini-text">Crie, altere ou remova produtos do catálogo.</p></div>
+            <div>
+              <h3>Cadastro e edição de produtos</h3>
+              <p class="mini-text">Crie, altere ou remova produtos do catálogo.</p>
+            </div>
             <span class="badge info" id="productFormMode">Novo produto</span>
           </div>
           <form id="productForm" class="form-grid">
@@ -216,12 +244,19 @@
           </form>
         </div>
         <div class="card">
-          <div class="section-head"><div><h3>Lista de produtos</h3><p class="mini-text">Use a pesquisa para localizar rapidamente.</p></div></div>
-          <div class="filter-row"><input type="text" id="productSearch" placeholder="Pesquisar por nome ou categoria" /></div>
+          <div class="section-head">
+            <div><h3>Lista de produtos</h3><p class="mini-text">Use a pesquisa para localizar rapidamente.</p></div>
+          </div>
+          <div class="filter-row">
+            <input type="text" id="productSearch" placeholder="Pesquisar por nome ou categoria" />
+          </div>
           <div id="productCards" class="list carousel-slider"></div>
         </div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- STOCK                                                  -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="stock">
         <div class="card">
           <h3>Entrada de stock</h3>
@@ -244,53 +279,59 @@
         </div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- VENDA                                                  -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="venda">
-  <div class="card">
-    <h3>➕ Adicionar produto à venda</h3>
-    <form id="saleForm" class="form-grid">
-      <label>Produto<select id="saleProduct"></select></label>
-      <label>Quantidade<input type="number" id="saleQty" min="1" step="1" required /></label>
-      <label>Preço unitário (AOA)<input type="number" id="salePrice" min="0" step="0.01" required /></label>
-      <label>Método de pagamento<select id="saleMethod">
-        <option value="dinheiro">Dinheiro</option>
-        <option value="transferencia">Transferência</option>
-        <option value="multicaixa">Multicaixa</option>
-      </select></label>
-      <label class="full-span">Cliente
-  <div class="client-picker-row">
-    <input type="text" id="saleClient" placeholder="Nome do cliente (opcional)" />
-    <button type="button" class="ghost" id="pickClientBtn">📋 Escolher</button>
-  </div>
-</label>
-<label class="full-span">Observação<input type="text" id="saleNote" placeholder="Observação sobre a venda (opcional)" /></label>
-      <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
-      <button class="primary full-span" type="submit">➕ Adicionar ao carrinho</button>
-    </form>
-  </div>
+        <div class="card">
+          <h3>➕ Adicionar produto à venda</h3>
+          <form id="saleForm" class="form-grid">
+            <label>Produto<select id="saleProduct"></select></label>
+            <label>Quantidade<input type="number" id="saleQty" min="1" step="1" required /></label>
+            <label>Preço unitário (AOA)<input type="number" id="salePrice" min="0" step="0.01" required /></label>
+            <label>Método de pagamento<select id="saleMethod">
+              <option value="dinheiro">Dinheiro</option>
+              <option value="transferencia">Transferência</option>
+              <option value="multicaixa">Multicaixa</option>
+            </select></label>
+            <label class="full-span">Cliente
+              <div class="client-picker-row">
+                <input type="text" id="saleClient" placeholder="Nome do cliente (opcional)" />
+                <button type="button" class="ghost" id="pickClientBtn">📋 Escolher</button>
+              </div>
+            </label>
+            <label class="full-span">Observação<input type="text" id="saleNote" placeholder="Observação sobre a venda (opcional)" /></label>
+            <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
+            <button class="primary full-span" type="submit">➕ Adicionar ao carrinho</button>
+          </form>
+        </div>
 
-  <div class="card cart-card">
-    <div class="section-head">
-      <div>
-        <h3>🛒 Carrinho</h3>
-        <p class="mini-text" id="cartItemCount">Nenhum produto adicionado</p>
-      </div>
-    </div>
+        <div class="card cart-card">
+          <div class="section-head">
+            <div>
+              <h3>🛒 Carrinho</h3>
+              <p class="mini-text" id="cartItemCount">Nenhum produto adicionado</p>
+            </div>
+          </div>
 
-    <div id="cartList" class="list"></div>
+          <div id="cartList" class="list"></div>
 
-    <div id="cartSummary" class="cart-summary hidden">
-      <div class="cart-total-row">
-        <span>Total a pagar</span>
-        <strong id="cartTotalValue">0,00 AOA</strong>
-      </div>
-      <div class="cart-actions">
-        <button type="button" class="ghost" id="clearCartBtn">🗑️ Limpar</button>
-        <button type="button" class="primary" id="finalizeSaleBtn">✅ Finalizar venda</button>
-      </div>
-    </div>
-  </div>
-</section>
+          <div id="cartSummary" class="cart-summary hidden">
+            <div class="cart-total-row">
+              <span>Total a pagar</span>
+              <strong id="cartTotalValue">0,00 AOA</strong>
+            </div>
+            <div class="cart-actions">
+              <button type="button" class="ghost" id="clearCartBtn">🗑️ Limpar</button>
+              <button type="button" class="primary" id="finalizeSaleBtn">✅ Finalizar venda</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
+      <!-- ===================================================== -->
+      <!-- CAIXA                                                  -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="caixa">
         <div class="card">
           <h3>Controle de caixa</h3>
@@ -307,6 +348,9 @@
         <div class="card"><h3>Resumo do caixa</h3><div id="cashSummary" class="list"></div></div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- HISTÓRICO                                              -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="historico">
         <div class="card">
           <h3>Histórico geral</h3>
@@ -322,6 +366,9 @@
         </div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- RELATÓRIO                                              -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="relatorio">
         <div class="card">
           <div class="section-head">
@@ -336,40 +383,46 @@
           <button class="primary full-span" id="exportPdfBtn" data-perm="relatorio" style="margin-top: 16px;">📄 Exportar Relatório PDF</button>
         </div>
       </section>
-      
+
+      <!-- ===================================================== -->
+      <!-- CLIENTES                                               -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="clientes">
-  <div class="card">
-    <div class="section-head">
-      <div>
-        <h3>Cadastro de clientes</h3>
-        <p class="mini-text">Crie e edite clientes. Cada venda associada aparece no histórico do cliente.</p>
-      </div>
-      <span class="badge info" id="clientFormMode">Novo cliente</span>
-    </div>
-    <form id="clientForm" class="form-grid">
-      <input type="hidden" id="clientEditId" />
-      <label>Nome completo<input type="text" id="clientName" required /></label>
-      <label>Telefone<input type="tel" id="clientPhone" placeholder="Ex.: +244 9XX XXX XXX" /></label>
-      <label>Email (opcional)<input type="email" id="clientEmail" placeholder="exemplo@email.com" /></label>
-      <label>NIF (opcional)<input type="text" id="clientNif" placeholder="Ex.: 0000000000" /></label>
-      <label class="full-span">Notas<input type="text" id="clientNotes" placeholder="Observações sobre o cliente" /></label>
-      <div class="button-row full-span">
-        <button class="primary" type="submit">Guardar cliente</button>
-        <button class="ghost" type="button" id="cancelClientEditBtn">Cancelar edição</button>
-      </div>
-    </form>
-  </div>
-  <div class="card">
-    <div class="section-head">
-      <div><h3>Clientes cadastrados</h3><p class="mini-text">Clique num cliente para ver detalhes e histórico.</p></div>
-    </div>
-    <div class="filter-row">
-      <input type="text" id="clientSearch" placeholder="Pesquisar por nome, telefone ou NIF" />
-    </div>
-    <div id="clientCards" class="list compact"></div>
-  </div>
-</section>
- 
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Cadastro de clientes</h3>
+              <p class="mini-text">Crie e edite clientes. Cada venda associada aparece no histórico do cliente.</p>
+            </div>
+            <span class="badge info" id="clientFormMode">Novo cliente</span>
+          </div>
+          <form id="clientForm" class="form-grid">
+            <input type="hidden" id="clientEditId" />
+            <label>Nome completo<input type="text" id="clientName" required /></label>
+            <label>Telefone<input type="tel" id="clientPhone" placeholder="Ex.: +244 9XX XXX XXX" /></label>
+            <label>Email (opcional)<input type="email" id="clientEmail" placeholder="exemplo@email.com" /></label>
+            <label>NIF (opcional)<input type="text" id="clientNif" placeholder="Ex.: 0000000000" /></label>
+            <label class="full-span">Notas<input type="text" id="clientNotes" placeholder="Observações sobre o cliente" /></label>
+            <div class="button-row full-span">
+              <button class="primary" type="submit">Guardar cliente</button>
+              <button class="ghost" type="button" id="cancelClientEditBtn">Cancelar edição</button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <div><h3>Clientes cadastrados</h3><p class="mini-text">Clique num cliente para ver detalhes e histórico.</p></div>
+          </div>
+          <div class="filter-row">
+            <input type="text" id="clientSearch" placeholder="Pesquisar por nome, telefone ou NIF" />
+          </div>
+          <div id="clientCards" class="list compact"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- USUÁRIOS                                               -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="usuarios">
         <div class="card">
           <h3>Criar / Editar Usuário</h3>
@@ -398,6 +451,9 @@
         <div class="card"><h3>Usuários cadastrados</h3><div id="userList" class="list"></div></div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- BACKUP                                                 -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="backup">
         <div class="card">
           <h3>Backup e restauração</h3>
@@ -425,47 +481,53 @@
         </div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- EXPORTAR CSV                                           -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="exportar">
-  <div class="card">
-    <div class="section-head">
-      <div>
-        <h3>📊 Exportação CSV</h3>
-        <p class="mini-text">Exporte os dados para Excel, Google Sheets ou outro programa. Formato compatível com Excel em português (separador <strong>;</strong>).</p>
-      </div>
-    </div>
-    <div class="list">
-      <div class="item">
-        <strong>📊 Vendas</strong>
-        <span>Histórico completo de vendas com cliente, produto, quantidade, valor e operador.</span>
-        <div class="card-actions">
-          <button type="button" class="primary" id="exportSalesCsvBtn">Exportar Vendas (CSV)</button>
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>📊 Exportação CSV</h3>
+              <p class="mini-text">Exporte os dados para Excel, Google Sheets ou outro programa. Formato compatível com Excel em português (separador <strong>;</strong>).</p>
+            </div>
+          </div>
+          <div class="list">
+            <div class="item">
+              <strong>📊 Vendas</strong>
+              <span>Histórico completo de vendas com cliente, produto, quantidade, valor e operador.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportSalesCsvBtn">Exportar Vendas (CSV)</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>📦 Stock</strong>
+              <span>Estado atual do stock com produto, categoria, quantidades, mínimo e preço.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportStockCsvBtn">Exportar Stock (CSV)</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>👥 Clientes</strong>
+              <span>Lista de clientes com contactos, NIF e estatísticas de compra.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportClientsCsvBtn">Exportar Clientes (CSV)</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>📋 Auditoria</strong>
+              <span>Registo completo das ações do sistema com utilizador, ação e data.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportAuditCsvBtn">Exportar Auditoria (CSV)</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="item">
-        <strong>📦 Stock</strong>
-        <span>Estado atual do stock com produto, categoria, quantidades, mínimo e preço.</span>
-        <div class="card-actions">
-          <button type="button" class="primary" id="exportStockCsvBtn">Exportar Stock (CSV)</button>
-        </div>
-      </div>
-      <div class="item">
-        <strong>👥 Clientes</strong>
-        <span>Lista de clientes com contactos, NIF e estatísticas de compra.</span>
-        <div class="card-actions">
-          <button type="button" class="primary" id="exportClientsCsvBtn">Exportar Clientes (CSV)</button>
-        </div>
-      </div>
-      <div class="item">
-        <strong>📋 Auditoria</strong>
-        <span>Registo completo das ações do sistema com utilizador, ação e data.</span>
-        <div class="card-actions">
-          <button type="button" class="primary" id="exportAuditCsvBtn">Exportar Auditoria (CSV)</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+      </section>
 
+      <!-- ===================================================== -->
+      <!-- AUDITORIA                                              -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="auditoria">
         <div class="card">
           <div class="section-head">
@@ -485,6 +547,9 @@
               <option value="user-remover">Utilizadores removidos</option>
               <option value="user-toggle">Utilizadores ativados/desativados</option>
               <option value="user-reset-pass">Reposições de senha</option>
+              <option value="client-criar">Clientes criados</option>
+              <option value="client-editar">Clientes editados</option>
+              <option value="client-remover">Clientes removidos</option>
               <option value="login">Logins</option>
               <option value="logout">Logouts</option>
               <option value="session-timeout">Sessões expiradas</option>
@@ -494,6 +559,9 @@
         </div>
       </section>
 
+      <!-- ===================================================== -->
+      <!-- NUVEM                                                  -->
+      <!-- ===================================================== -->
       <section class="tab-panel" id="nuvem">
         <div class="card"><h3>Status da nuvem</h3><div id="cloudPanel" class="list"></div></div>
       </section>
@@ -501,7 +569,7 @@
   </div>
 
   <!-- ========================================================= -->
-  <!-- MODAIS (fora do appShell)                                   -->
+  <!-- MODAIS (fora do appShell)                                  -->
   <!-- ========================================================= -->
 
   <!-- Modal de aviso de inatividade -->
@@ -515,68 +583,68 @@
       <button type="button" class="primary" onclick="window.__saldarContinueSession()" style="width: 100%;">Continuar sessão</button>
     </div>
   </div>
-  
-<!-- Modal de alertas de stock baixo -->
-<div id="lowStockModal" class="modal hidden">
-  <div class="modal-content receipt-modal-content">
-    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
-    <h3 style="margin: 0 0 8px; color: var(--warning); text-align:center;">⚠️ Alertas de stock baixo</h3>
-    <p class="mini-text" style="text-align:center; margin: 0 0 16px;">Produtos com stock igual ou abaixo do mínimo definido.</p>
-    <div id="lowStockModalList" class="list"></div>
-  </div>
-</div>
-  
-  <!-- Modal de recibo (Patch 11) -->
-<div id="receiptModal" class="modal hidden">
-  <div class="modal-content receipt-modal-content">
-    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
-    <div id="receiptContent"></div>
-    <div class="receipt-actions">
-      <button type="button" class="secondary-btn" onclick="window.imprimir80mm()">🎫 Imprimir 80mm</button>
-      <button type="button" class="secondary-btn" onclick="window.print()">🖨️ Imprimir A4</button>
-      <button type="button" class="primary" id="sendWhatsAppBtn">📱 WhatsApp</button>
-    </div>
-  </div>
-</div>
-  
-<!-- Modal: escolher cliente existente -->
-<div id="pickClientModal" class="modal hidden">
-  <div class="modal-content receipt-modal-content">
-    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
-    <h3 style="margin:0 0 12px; text-align:center;">📋 Escolher cliente</h3>
-    <div class="filter-row"><input type="text" id="pickClientSearch" placeholder="Pesquisar por nome, telefone ou NIF" /></div>
-    <div id="pickClientList" class="list" style="max-height:50vh; overflow-y:auto; margin-top:8px;"></div>
-    <div class="button-row" style="margin-top:12px;">
-      <button type="button" class="ghost" id="pickClientNoneBtn" style="flex:1;">Sem cliente / Avulso</button>
-      <button type="button" class="primary" id="pickClientNewBtn" style="flex:1;">➕ Novo cliente</button>
-    </div>
-  </div>
-</div>
 
-<!-- Modal: criar cliente rápido (durante a venda) -->
-<div id="newClientModal" class="modal hidden">
-  <div class="modal-content" style="max-width: 380px;">
-    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
-    <h3 style="margin:0 0 12px; text-align:center;">➕ Novo cliente</h3>
-    <div class="form-grid" style="grid-template-columns:1fr;">
-      <label>Nome completo<input type="text" id="quickClientName" required /></label>
-      <label>Telefone<input type="tel" id="quickClientPhone" placeholder="Opcional" /></label>
-      <label>NIF<input type="text" id="quickClientNif" placeholder="Opcional" /></label>
-    </div>
-    <div class="button-row" style="margin-top:12px;">
-      <button type="button" class="ghost" id="quickClientCancelBtn" style="flex:1;">Cancelar</button>
-      <button type="button" class="primary" id="quickClientSaveBtn" style="flex:1;">Guardar e usar</button>
+  <!-- Modal de alertas de stock baixo -->
+  <div id="lowStockModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <h3 style="margin: 0 0 8px; color: var(--warning); text-align:center;">⚠️ Alertas de stock baixo</h3>
+      <p class="mini-text" style="text-align:center; margin: 0 0 16px;">Produtos com stock igual ou abaixo do mínimo definido.</p>
+      <div id="lowStockModalList" class="list"></div>
     </div>
   </div>
-</div>
 
-<!-- Modal: histórico de cliente -->
-<div id="clientHistoryModal" class="modal hidden">
-  <div class="modal-content receipt-modal-content">
-    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
-    <div id="clientHistoryContent"></div>
+  <!-- Modal de recibo -->
+  <div id="receiptModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <div id="receiptContent"></div>
+      <div class="receipt-actions">
+        <button type="button" class="secondary-btn" onclick="window.imprimir80mm()">🎫 Imprimir 80mm</button>
+        <button type="button" class="secondary-btn" onclick="window.print()">🖨️ Imprimir A4</button>
+        <button type="button" class="primary" id="sendWhatsAppBtn">📱 WhatsApp</button>
+      </div>
+    </div>
   </div>
-</div>
+
+  <!-- Modal: escolher cliente existente -->
+  <div id="pickClientModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <h3 style="margin:0 0 12px; text-align:center;">📋 Escolher cliente</h3>
+      <div class="filter-row"><input type="text" id="pickClientSearch" placeholder="Pesquisar por nome, telefone ou NIF" /></div>
+      <div id="pickClientList" class="list" style="max-height:50vh; overflow-y:auto; margin-top:8px;"></div>
+      <div class="button-row" style="margin-top:12px;">
+        <button type="button" class="ghost" id="pickClientNoneBtn" style="flex:1;">Sem cliente / Avulso</button>
+        <button type="button" class="primary" id="pickClientNewBtn" style="flex:1;">➕ Novo cliente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: criar cliente rápido (durante a venda) -->
+  <div id="newClientModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 380px;">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <h3 style="margin:0 0 12px; text-align:center;">➕ Novo cliente</h3>
+      <div class="form-grid" style="grid-template-columns:1fr;">
+        <label>Nome completo<input type="text" id="quickClientName" required /></label>
+        <label>Telefone<input type="tel" id="quickClientPhone" placeholder="Opcional" /></label>
+        <label>NIF<input type="text" id="quickClientNif" placeholder="Opcional" /></label>
+      </div>
+      <div class="button-row" style="margin-top:12px;">
+        <button type="button" class="ghost" id="quickClientCancelBtn" style="flex:1;">Cancelar</button>
+        <button type="button" class="primary" id="quickClientSaveBtn" style="flex:1;">Guardar e usar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: histórico de cliente -->
+  <div id="clientHistoryModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <div id="clientHistoryContent"></div>
+    </div>
+  </div>
 
   <!-- Toast GLOBAL (fora do appShell para aparecer também no login) -->
   <div id="toast" class="toast hidden"></div>
