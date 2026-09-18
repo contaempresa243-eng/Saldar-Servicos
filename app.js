@@ -61,6 +61,13 @@ const cart = {
 };
 
 // =====================================================================
+// PATCH 16 — Instâncias dos gráficos (Chart.js)
+// =====================================================================
+const chartInstances = {
+  sales7d: null,
+  topProducts: null
+};
+// =====================================================================
 // Defaults
 // =====================================================================
 
@@ -343,7 +350,10 @@ const els = {
 exportSalesCsvBtn: document.getElementById('exportSalesCsvBtn'),
 exportStockCsvBtn: document.getElementById('exportStockCsvBtn'),
 exportClientsCsvBtn: document.getElementById('exportClientsCsvBtn'),
-exportAuditCsvBtn: document.getElementById('exportAuditCsvBtn')
+exportAuditCsvBtn: document.getElementById('exportAuditCsvBtn'),
+monthComparison: document.getElementById('monthComparison'),
+chartSales7d: document.getElementById('chartSales7d'),
+chartTopProducts: document.getElementById('chartTopProducts')
 };
 
 function toast(message, duration = 8000) {
@@ -1252,6 +1262,8 @@ function renderAll() {
   try { renderDashboardFinanceiro(); } catch (e) { _origConsoleError('[renderDashboardFinanceiro]', e); }
   try { renderAuditLog(); } catch (e) { _origConsoleError('[renderAuditLog]', e); }
   try { renderClients(); } catch (e) { _origConsoleError('[renderClients]', e); }
+  try { renderMonthComparison(); } catch (e) { _origConsoleError('[renderMonthComparison]', e); }
+try { renderCharts(); } catch (e) { _origConsoleError('[renderCharts]', e); }
 }
 // =====================================================================
 // Forms
@@ -1467,6 +1479,239 @@ async function logout() {
   session.currentUser = null;
   saveLocal();
   showApp(false);
+}
+
+// =====================================================================
+// GRÁFICOS — Patch 16
+// =====================================================================
+
+/**
+ * Devolve um array com as vendas agrupadas por dia dos últimos N dias.
+ * Ex.: [{ label: '12/09', total: 15000 }, ...]
+ */
+function getSalesByDay(days = 7) {
+  const result = [];
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(todayDate);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+
+    const total = (state.history || [])
+      .filter(h => h.type === 'venda' && h.date && h.date.slice(0, 10) === iso)
+      .reduce((s, h) => s + Number(h.total || 0), 0);
+
+    result.push({ label, total });
+  }
+  return result;
+}
+
+/**
+ * Devolve o total vendido dos últimos 30 dias por produto.
+ */
+function getTopProductsLast30Days() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const map = {};
+  (state.history || []).forEach(h => {
+    if (h.type !== 'venda') return;
+    const d = new Date(h.date);
+    if (d < cutoff) return;
+    const key = h.productName || 'Sem nome';
+    map[key] = (map[key] || 0) + Number(h.total || 0);
+  });
+
+  return Object.entries(map)
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+}
+
+/**
+ * Calcula os totais dos últimos 2 meses para o card de comparação.
+ */
+function getMonthComparison() {
+  const now = new Date();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const sales = (state.history || []).filter(h => h.type === 'venda');
+
+  const thisMonth = sales.filter(h => {
+    const d = new Date(h.date);
+    return d >= thisMonthStart;
+  });
+  const lastMonth = sales.filter(h => {
+    const d = new Date(h.date);
+    return d >= lastMonthStart && d < lastMonthEnd;
+  });
+
+  return {
+    thisMonth: {
+      total: thisMonth.reduce((s, h) => s + Number(h.total || 0), 0),
+      count: thisMonth.length
+    },
+    lastMonth: {
+      total: lastMonth.reduce((s, h) => s + Number(h.total || 0), 0),
+      count: lastMonth.length
+    }
+  };
+}
+
+function renderMonthComparison() {
+  if (!els.monthComparison) return;
+  if (!can('verFinanceiro')) {
+    els.monthComparison.innerHTML = '<div class="item empty-state">Sem permissão.</div>';
+    return;
+  }
+
+  const { thisMonth, lastMonth } = getMonthComparison();
+  const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const now = new Date();
+  const thisMonthName = monthNames[now.getMonth()];
+  const lastMonthName = monthNames[(now.getMonth() + 11) % 12];
+
+  let trendClass = 'flat';
+  let trendText = '= Igual';
+  if (lastMonth.total > 0) {
+    const change = ((thisMonth.total - lastMonth.total) / lastMonth.total) * 100;
+    if (change > 1) {
+      trendClass = 'up';
+      trendText = `▲ +${change.toFixed(1)}%`;
+    } else if (change < -1) {
+      trendClass = 'down';
+      trendText = `▼ ${change.toFixed(1)}%`;
+    }
+  } else if (thisMonth.total > 0) {
+    trendClass = 'up';
+    trendText = '▲ Novo';
+  }
+
+  els.monthComparison.innerHTML = `
+    <div class="month-box">
+      <small>${lastMonthName}</small>
+      <strong>${money(lastMonth.total)}</strong>
+      <div class="month-detail">${lastMonth.count} ${lastMonth.count === 1 ? 'venda' : 'vendas'}</div>
+    </div>
+    <div class="month-box highlight">
+      <small>${thisMonthName} (atual)</small>
+      <strong>${money(thisMonth.total)}</strong>
+      <div class="month-detail">${thisMonth.count} ${thisMonth.count === 1 ? 'venda' : 'vendas'}</div>
+    </div>
+    <div class="month-box ${trendClass === 'up' ? 'positive' : trendClass === 'down' ? 'negative' : ''}">
+      <small>Variação</small>
+      <span class="trend ${trendClass}">${trendText}</span>
+      <div class="month-detail">vs. mês anterior</div>
+    </div>
+  `;
+}
+
+function renderCharts() {
+  if (!can('verFinanceiro')) return;
+  if (typeof Chart === 'undefined') return;
+
+  // ========== Gráfico 1: Vendas dos últimos 7 dias ==========
+  if (els.chartSales7d) {
+    const data7d = getSalesByDay(7);
+
+    if (chartInstances.sales7d) chartInstances.sales7d.destroy();
+
+    const ctx = els.chartSales7d.getContext('2d');
+    chartInstances.sales7d = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data7d.map(d => d.label),
+        datasets: [{
+          label: 'Faturamento (AOA)',
+          data: data7d.map(d => d.total),
+          borderColor: '#0f766e',
+          backgroundColor: 'rgba(15, 118, 110, 0.12)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: '#0f766e',
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => money(ctx.parsed.y)
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (v) => new Intl.NumberFormat('pt-PT', { notation: 'compact' }).format(v)
+            }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ========== Gráfico 2: Top 5 produtos (30 dias) ==========
+  if (els.chartTopProducts) {
+    const tops = getTopProductsLast30Days();
+
+    if (chartInstances.topProducts) chartInstances.topProducts.destroy();
+
+    if (tops.length === 0) {
+      els.chartTopProducts.parentElement.innerHTML =
+        '<div class="item empty-state">Sem vendas nos últimos 30 dias.</div>';
+    } else {
+      const ctx = els.chartTopProducts.getContext('2d');
+      chartInstances.topProducts = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: tops.map(t => t.name),
+          datasets: [{
+            label: 'Total vendido (AOA)',
+            data: tops.map(t => t.total),
+            backgroundColor: ['#0f766e', '#14b8a6', '#f59e0b', '#3b82f6', '#8b5cf6'],
+            borderRadius: 8,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => money(ctx.parsed.y)
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (v) => new Intl.NumberFormat('pt-PT', { notation: 'compact' }).format(v)
+              }
+            },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+  }
 }
 
 // =====================================================================

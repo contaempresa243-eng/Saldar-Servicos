@@ -1331,3 +1331,108 @@ td {
   color: #333;
   margin-top: 2px;
 }
+/* ============================================================
+   PATCH 16 — Gráficos e comparação mensal (v20)
+   ============================================================ */
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  margin-top: 8px;
+}
+
+.chart-container canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.month-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.month-box {
+  background: #f9fcfe;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+}
+
+.month-box small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.month-box strong {
+  display: block;
+  font-size: 18px;
+  color: var(--primary);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.month-box .month-detail {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.month-box.highlight {
+  background: linear-gradient(135deg, #f0fdfa, #fff);
+  border-color: var(--primary);
+}
+
+.month-box.positive strong {
+  color: #059669;
+}
+
+.month-box.negative strong {
+  color: var(--danger);
+}
+
+.month-box .trend {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 4px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.month-box .trend.up {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.month-box .trend.down {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.month-box .trend.flat {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+@media (max-width: 600px) {
+  .chart-container {
+    height: 220px;
+  }
+  .month-comparison {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .month-box {
+    padding: 12px;
+  }
+  .month-box strong {
+    font-size: 16px;
+  }
+}
