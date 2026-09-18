@@ -1494,11 +1494,27 @@ function toCsv(rows, headers) {
 }
 
 /**
- * Descarrega um CSV com BOM UTF-8 (para Excel reconhecer acentos).
+ * Codifica uma string como UTF-16LE com BOM (0xFF 0xFE).
+ * Este formato é reconhecido automaticamente pelo Excel, Sheets e LibreOffice
+ * em qualquer plataforma (desktop e mobile), evitando problemas com acentos.
+ */
+function encodeUtf16Le(text) {
+  const str = String(text || '');
+  const buffer = new ArrayBuffer((str.length + 1) * 2);
+  const view = new DataView(buffer);
+  view.setUint16(0, 0xFEFF, true);
+  for (let i = 0; i < str.length; i++) {
+    view.setUint16((i + 1) * 2, str.charCodeAt(i), true);
+  }
+  return buffer;
+}
+
+/**
+ * Descarrega um CSV em UTF-16LE (compatível com Excel, Sheets, LibreOffice).
  */
 function downloadCsv(filename, content) {
-  const BOM = '\uFEFF';
-  const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
+  const buffer = encodeUtf16Le(content);
+  const blob = new Blob([buffer], { type: 'text/csv;charset=utf-16le;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
