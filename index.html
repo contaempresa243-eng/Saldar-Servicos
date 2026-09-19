@@ -427,12 +427,11 @@
         <p class="mini-text">Escolha um período para ver o resumo.</p>
       </div>
       <div class="report-actions">
-        <select id="reportRange" class="range-select">
-          <option value="">— Escolher período —</option>
-          <option value="today">Hoje</option>
-          <option value="7d">Últimos 7 dias</option>
-          <option value="30d">Últimos 30 dias</option>
-        </select>
+        <button type="button" class="range-select-btn" id="reportRangeBtn">
+  <span id="reportRangeLabel">— Escolher período —</span>
+  <span class="arrow">▾</span>
+</button>
+<input type="hidden" id="reportRange" value="" />
         <button type="button" class="pdf-icon-btn" id="pdfIconBtn" title="Exportar relatório PDF" aria-label="Exportar PDF">
           <span class="pdf-icon">📄</span>
         </button>
@@ -811,6 +810,22 @@
       <div id="clientHistoryContent"></div>
     </div>
   </div>
+  
+<!-- Modal: escolher período do relatório -->
+<div id="reportRangeModal" class="modal hidden">
+  <div class="modal-content range-modal-content">
+    <div class="range-modal-header">
+      <h3>Escolher período</h3>
+    </div>
+    <div class="range-options">
+      <button type="button" class="range-option" data-value="">— Sem período —</button>
+      <button type="button" class="range-option" data-value="today">📅 Hoje</button>
+      <button type="button" class="range-option" data-value="7d">📅 Últimos 7 dias</button>
+      <button type="button" class="range-option" data-value="30d">📅 Últimos 30 dias</button>
+    </div>
+    <button type="button" class="ghost full-span" id="reportRangeCancelBtn">Cancelar</button>
+  </div>
+</div>
 
   <!-- Toast GLOBAL (fora do appShell para aparecer também no login) -->
   <div id="toast" class="toast hidden"></div>

@@ -323,6 +323,10 @@ clearHistoryFiltersBtn: document.getElementById('clearHistoryFiltersBtn'),
   exportPdfBtn: document.getElementById('exportPdfBtn'),
   pdfIconBtn: document.getElementById('pdfIconBtn'),
 pdfPanel: document.getElementById('pdfPanel'),
+  reportRangeBtn: document.getElementById('reportRangeBtn'),
+reportRangeLabel: document.getElementById('reportRangeLabel'),
+reportRangeModal: document.getElementById('reportRangeModal'),
+reportRangeCancelBtn: document.getElementById('reportRangeCancelBtn'),
   pdfIncludeSummary: document.getElementById('pdfIncludeSummary'),
 pdfIncludeByProduct: document.getElementById('pdfIncludeByProduct'),
 pdfIncludeByClient: document.getElementById('pdfIncludeByClient'),
@@ -3574,6 +3578,80 @@ document.addEventListener('keydown', (e) => {
     const modal = document.getElementById(modalId);
     if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden');
   });
+});
+
+// =====================================================================
+// PATCH 20.2 — Seletor de período customizado
+// =====================================================================
+
+function openReportRangeModal() {
+  if (!els.reportRangeModal) return;
+
+  // Marcar a opção atual
+  const currentValue = els.reportRange?.value || '';
+  els.reportRangeModal.querySelectorAll('.range-option').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.value === currentValue);
+  });
+
+  els.reportRangeModal.classList.remove('hidden');
+}
+
+function closeReportRangeModal() {
+  els.reportRangeModal?.classList.add('hidden');
+}
+
+els.reportRangeBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  openReportRangeModal();
+});
+
+els.reportRangeCancelBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  closeReportRangeModal();
+});
+
+els.reportRangeModal?.querySelectorAll('.range-option').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    const value = btn.dataset.value || '';
+    const labelText = btn.textContent.trim();
+
+    // Atualizar o input hidden
+    if (els.reportRange) els.reportRange.value = value;
+
+    // Atualizar o label visível
+    if (els.reportRangeLabel) {
+      els.reportRangeLabel.textContent = value
+        ? labelText.replace(/^[^\s]+\s/, '') // remove o emoji do início
+        : '— Escolher período —';
+    }
+
+    // Fechar modal
+    closeReportRangeModal();
+
+    // Renderizar o relatório
+    renderReport();
+
+    // Fechar painel PDF se estiver aberto
+    els.pdfPanel?.classList.add('hidden');
+  });
+});
+
+// Clicar no fundo escuro fecha o modal
+els.reportRangeModal?.addEventListener('click', (e) => {
+  if (e.target === els.reportRangeModal) {
+    closeReportRangeModal();
+  }
+});
+
+// ESC fecha o modal
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && els.reportRangeModal && !els.reportRangeModal.classList.contains('hidden')) {
+    closeReportRangeModal();
+  }
 });
 
 // =====================================================================

@@ -1921,3 +1921,113 @@ td {
     width: auto;
   }
 }
+/* ============================================================
+   PATCH 20.2 — Seletor de período customizado (v26)
+   ============================================================ */
+
+/* Botão que substitui o <select> */
+.range-select-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 200px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+  text-align: left;
+}
+
+.range-select-btn:active {
+  background: #f0fdfa;
+  border-color: var(--primary);
+}
+
+.range-select-btn #reportRangeLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.range-select-btn .arrow {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Modal customizado (estilo do app, verde, médio) */
+.range-modal-content {
+  max-width: 320px;
+  width: 90%;
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  color: #fff;
+  border-radius: 20px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(15, 118, 110, 0.35);
+}
+
+.range-modal-header {
+  padding: 18px 20px 12px;
+  text-align: center;
+}
+
+.range-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.03em;
+}
+
+.range-options {
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 12px;
+  gap: 6px;
+}
+
+.range-option {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  padding: 12px 16px;
+  text-align: left;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.range-option:active {
+  background: rgba(255, 255, 255, 0.28);
+  transform: scale(0.98);
+}
+
+.range-option.selected {
+  background: rgba(255, 255, 255, 0.32);
+  border-color: #fff;
+}
+
+.range-modal-content .ghost {
+  background: transparent !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 0 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.25) !important;
+  padding: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+}
+
+.range-modal-content .ghost:active {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
