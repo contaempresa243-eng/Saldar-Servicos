@@ -3652,6 +3652,46 @@ document.querySelectorAll('.tab').forEach((btn) => {
 });
 
 // =====================================================================
+// PATCH 20.1 — Painel PDF flutuante
+// =====================================================================
+
+let pdfPanelJustOpened = false;
+
+els.pdfIconBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (!can('relatorio')) return toast('Apenas administradores.');
+
+  const isHidden = els.pdfPanel?.classList.contains('hidden');
+  els.pdfPanel?.classList.toggle('hidden');
+
+  // Se acabou de abrir, ignora cliques-outside durante 300ms
+  if (isHidden) {
+    pdfPanelJustOpened = true;
+    setTimeout(() => { pdfPanelJustOpened = false; }, 300);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!els.pdfPanel || els.pdfPanel.classList.contains('hidden')) return;
+  if (pdfPanelJustOpened) return;
+
+  const insidePanel = els.pdfPanel.contains(e.target);
+  const insideBtn = els.pdfIconBtn?.contains(e.target);
+
+  if (!insidePanel && !insideBtn) {
+    els.pdfPanel.classList.add('hidden');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && els.pdfPanel && !els.pdfPanel.classList.contains('hidden')) {
+    els.pdfPanel.classList.add('hidden');
+  }
+});
+
+// =====================================================================
 // PDF
 // =====================================================================
 
@@ -3935,9 +3975,9 @@ els.exportPdfBtn?.addEventListener('click', () => {
     );
   }
 
-  // Guardar
-  doc.save(`relatorio_${today()}.pdf`);
+    doc.save(`relatorio_${today()}.pdf`);
   toast('Relatório PDF gerado com sucesso!');
+  els.pdfPanel?.classList.add('hidden');
 });
 
 // =====================================================================
