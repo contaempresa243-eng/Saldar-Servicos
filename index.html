@@ -357,18 +357,63 @@
       <!-- HISTÓRICO                                              -->
       <!-- ===================================================== -->
       <section class="tab-panel" id="historico">
-        <div class="card">
-          <h3>Histórico geral</h3>
-          <div class="filter-row">
-            <select id="historyFilter">
-              <option value="todos">Todos</option>
-              <option value="venda">Vendas</option>
-              <option value="stock">Entradas de stock</option>
-              <option value="caixa">Movimentos de caixa</option>
-            </select>
-          </div>
-          <div id="historyList" class="list"></div>
-        </div>
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Histórico geral</h3>
+        <p class="mini-text">Filtre por tipo, período, operador, cliente ou método de pagamento.</p>
+      </div>
+      <button type="button" class="ghost" id="clearHistoryFiltersBtn">🧹 Limpar filtros</button>
+    </div>
+
+    <div class="history-filters">
+      <label>
+        Tipo
+        <select id="historyFilter">
+          <option value="todos">Todos</option>
+          <option value="venda">Vendas</option>
+          <option value="stock">Entradas de stock</option>
+          <option value="caixa">Movimentos de caixa</option>
+        </select>
+      </label>
+
+      <label>
+        Data início
+        <input type="date" id="historyDateFrom" />
+      </label>
+
+      <label>
+        Data fim
+        <input type="date" id="historyDateTo" />
+      </label>
+
+      <label>
+        Operador
+        <select id="historyOperator">
+          <option value="">Todos os operadores</option>
+        </select>
+      </label>
+
+      <label>
+        Cliente
+        <select id="historyClient">
+          <option value="">Todos os clientes</option>
+        </select>
+      </label>
+
+      <label>
+        Método de pagamento
+        <select id="historyPayment">
+          <option value="">Todos os métodos</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="transferencia">Transferência</option>
+          <option value="multicaixa">Multicaixa</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="historyList" class="list"></div>
+  </div>
       </section>
 
       <!-- ===================================================== -->

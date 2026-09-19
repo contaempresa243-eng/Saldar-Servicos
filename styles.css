@@ -1657,3 +1657,44 @@ td {
   color: var(--danger);
   font-weight: 700;
 }
+/* ============================================================
+   PATCH 19 — Filtros avançados no histórico (v23)
+   ============================================================ */
+
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.history-filters select,
+.history-filters input {
+  font-size: 13px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+@media (max-width: 700px) {
+  .history-filters {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 500px) {
+  .history-filters {
+    grid-template-columns: 1fr;
+  }
+}

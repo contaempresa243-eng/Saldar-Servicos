@@ -290,6 +290,12 @@ productPriceVip: document.getElementById('productPriceVip'),
   salePriceHint: document.getElementById('salePriceHint'),
   historyList: document.getElementById('historyList'),
   historyFilter: document.getElementById('historyFilter'),
+  historyDateFrom: document.getElementById('historyDateFrom'),
+historyDateTo: document.getElementById('historyDateTo'),
+historyOperator: document.getElementById('historyOperator'),
+historyClient: document.getElementById('historyClient'),
+historyPayment: document.getElementById('historyPayment'),
+clearHistoryFiltersBtn: document.getElementById('clearHistoryFiltersBtn'),
   dailyReport: document.getElementById('dailyReport'),
   reportRange: document.getElementById('reportRange'),
   cashSummary: document.getElementById('cashSummary'),
@@ -989,16 +995,103 @@ function normalizeHistory() {
     ...state.history.map((item) => ({ ...item, group: item.type })),
     ...state.cashMovements.map((item) => ({ ...item, group: 'caixa' }))
   ];
-  if (!can('historicoTodos') && user) {
-    combined = combined.filter((item) => item.createdById === user.id);
-  }
+
+  // Patch 19: filtros avançados
+  const typeFilter = els.historyFilter?.value || 'todos';
+  const dateFrom = els.historyDateFrom?.value || '';
+  const dateTo = els.historyDateTo?.value || '';
+  const operatorFilter = els.historyOperator?.value || '';
+  const clientFilter = els.historyClient?.value || '';
+  const paymentFilter = els.historyPayment?.value || '';
+
   combined.sort((a, b) => new Date(b.date) - new Date(a.date));
-  const filter = els.historyFilter?.value || 'todos';
-  return combined.filter((item) => filter === 'todos' || item.group === filter);
+
+  return combined.filter((item) => {
+    // Operador vê apenas o que criou
+    if (!can('historicoTodos') && user && item.createdById !== user.id) return false;
+
+    // Tipo
+    if (typeFilter !== 'todos' && item.group !== typeFilter) return false;
+
+    // Operador
+    if (operatorFilter && item.createdById !== operatorFilter) return false;
+
+    // Data início
+    if (dateFrom) {
+      const itemDate = (item.date || '').slice(0, 10);
+      if (itemDate < dateFrom) return false;
+    }
+
+    // Data fim
+    if (dateTo) {
+      const itemDate = (item.date || '').slice(0, 10);
+      if (itemDate > dateTo) return false;
+    }
+
+    // Cliente (só vendas têm clientId)
+    if (clientFilter) {
+      if (item.type !== 'venda' || item.clientId !== clientFilter) return false;
+    }
+
+    // Método de pagamento (só vendas têm paymentMethod)
+    if (paymentFilter) {
+      if (item.type !== 'venda' || item.paymentMethod !== paymentFilter) return false;
+    }
+
+    return true;
+  });
+}
+
+// =====================================================================
+// PATCH 19 — Popular dropdowns de operadores e clientes
+// =====================================================================
+
+function populateHistoryFilters() {
+  // 1. Operadores (a partir do histórico)
+  if (els.historyOperator) {
+    const current = els.historyOperator.value;
+    const operators = new Map();
+
+    (state.history || []).forEach(h => {
+      if (h.createdById && h.createdByName) {
+        operators.set(h.createdById, h.createdByName);
+      }
+    });
+
+    const options = Array.from(operators.entries())
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`)
+      .join('');
+
+    els.historyOperator.innerHTML = `<option value="">Todos os operadores</option>${options}`;
+
+    if (current && operators.has(current)) {
+      els.historyOperator.value = current;
+    }
+  }
+
+  // 2. Clientes (a partir do state.clients)
+  if (els.historyClient) {
+    const current = els.historyClient.value;
+    const clients = (state.clients || []).slice().sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '')
+    );
+
+    const options = clients
+      .map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
+      .join('');
+
+    els.historyClient.innerHTML = `<option value="">Todos os clientes</option>${options}`;
+
+    if (current && clients.some(c => c.id === current)) {
+      els.historyClient.value = current;
+    }
+  }
 }
 
 function renderHistory() {
   if (!els.historyList) return;
+  populateHistoryFilters();
   const records = normalizeHistory();
   els.historyList.innerHTML = records.length
     ? records.map((item) => {
@@ -3508,6 +3601,21 @@ els.saleClient?.addEventListener('input', () => {
 });
 els.stockProduct?.addEventListener('change', syncMin);
 els.historyFilter?.addEventListener('change', renderHistory);
+els.historyDateFrom?.addEventListener('change', renderHistory);
+els.historyDateTo?.addEventListener('change', renderHistory);
+els.historyOperator?.addEventListener('change', renderHistory);
+els.historyClient?.addEventListener('change', renderHistory);
+els.historyPayment?.addEventListener('change', renderHistory);
+els.clearHistoryFiltersBtn?.addEventListener('click', () => {
+  if (els.historyFilter) els.historyFilter.value = 'todos';
+  if (els.historyDateFrom) els.historyDateFrom.value = '';
+  if (els.historyDateTo) els.historyDateTo.value = '';
+  if (els.historyOperator) els.historyOperator.value = '';
+  if (els.historyClient) els.historyClient.value = '';
+  if (els.historyPayment) els.historyPayment.value = '';
+  renderHistory();
+  toast('Filtros limpos.');
+});
 els.reportRange?.addEventListener('change', renderReport);
 els.auditLogFilter?.addEventListener('change', renderAuditLog);
 
@@ -3778,6 +3886,10 @@ if ('serviceWorker' in navigator) {
   markMode();
   updateConnectivityBadge();
   switchAuthView('login');
+  // Patch 18: data default no form de despesas
+if (els.expenseDate && !els.expenseDate.value) {
+  els.expenseDate.value = today();
+}
 
   if (cloudMode()) {
     await initFirebase();
