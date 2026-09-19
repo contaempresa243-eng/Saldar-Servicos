@@ -1748,3 +1748,176 @@ td {
     grid-template-columns: 1fr;
   }
 }
+/* ============================================================
+   PATCH 20.1 — Redesign do resumo de relatório (v25)
+   ============================================================ */
+
+.report-main-card {
+  position: relative;
+  overflow: visible;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.report-header > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.report-actions select.range-select {
+  min-width: 150px;
+  font-size: 13px;
+  padding: 10px;
+}
+
+/* Botão ícone PDF (folha de papel) */
+.pdf-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  padding: 0;
+}
+
+.pdf-icon-btn:active {
+  transform: scale(0.95);
+  background: #f0fdfa;
+  border-color: var(--primary);
+}
+
+.pdf-icon {
+  font-size: 22px;
+  line-height: 1;
+  user-select: none;
+}
+
+/* Grelha de cards de resumo (6/6 no desktop, 1/1 no mobile) */
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.report-grid.hidden {
+  display: none !important;
+}
+
+.report-grid .item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f9fcfe;
+  font-size: 13px;
+}
+
+.report-grid .item strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.report-grid .item span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.report-grid .item.empty-state {
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+/* Painel flutuante do PDF (aparece sobre o conteúdo) */
+.pdf-panel {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  width: min(340px, calc(100% - 32px));
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+  padding: 16px;
+  z-index: 50;
+}
+
+.pdf-panel.hidden {
+  display: none !important;
+}
+
+.pdf-panel-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 12px;
+  text-align: center;
+  color: var(--text);
+}
+
+.pdf-panel .pdf-options {
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pdf-panel .pdf-option {
+  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.pdf-panel .pdf-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.pdf-panel button {
+  min-height: 42px;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .report-header {
+    align-items: flex-start;
+  }
+
+  .report-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .report-actions select.range-select {
+    flex: 1;
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pdf-panel {
+    top: auto;
+    bottom: 16px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+}

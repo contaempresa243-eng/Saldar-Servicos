@@ -321,6 +321,8 @@ clearHistoryFiltersBtn: document.getElementById('clearHistoryFiltersBtn'),
   toast: document.getElementById('toast'),
   installBtn: document.getElementById('installBtn'),
   exportPdfBtn: document.getElementById('exportPdfBtn'),
+  pdfIconBtn: document.getElementById('pdfIconBtn'),
+pdfPanel: document.getElementById('pdfPanel'),
   pdfIncludeSummary: document.getElementById('pdfIncludeSummary'),
 pdfIncludeByProduct: document.getElementById('pdfIncludeByProduct'),
 pdfIncludeByClient: document.getElementById('pdfIncludeByClient'),
@@ -1127,11 +1129,24 @@ function renderCash() {
 
 function renderReport() {
   if (!els.dailyReport) return;
+
   if (!can('relatorio')) {
+    els.dailyReport.classList.remove('hidden');
     els.dailyReport.innerHTML = '<div class="item empty-state"><strong>Sem permissão</strong><span>Apenas administradores podem ver relatórios.</span></div>';
     return;
   }
-  const range = els.reportRange?.value || 'today';
+
+  const range = els.reportRange?.value || '';
+
+  // Patch 20.1: nada selecionado → esconder o grid
+  if (!range) {
+    els.dailyReport.classList.add('hidden');
+    els.dailyReport.innerHTML = '';
+    return;
+  }
+
+  els.dailyReport.classList.remove('hidden');
+
   const sales = salesForRange(range);
   const cashMovements = cashForRange(range);
   const revenue = sales.reduce((s, item) => s + Number(item.total || 0), 0);
@@ -1154,10 +1169,10 @@ function renderReport() {
     <div class="item"><strong>Período</strong><span>${esc(label)}</span></div>
     <div class="item"><strong>Total vendido</strong><span>${qty} ${qty === 1 ? 'unidade' : 'unidades'}</span></div>
     <div class="item"><strong>Faturamento</strong><span>${money(revenue)}</span></div>
-    <div class="item"><strong>Entradas de caixa manuais</strong><span>${money(cashIn)}</span></div>
-    <div class="item"><strong>Saídas de caixa manuais</strong><span>${money(cashOut)}</span></div>
-    ${top.length ? top.map(([name, count]) => `<div class="item"><strong>${esc(name)}</strong><span>${count} ${count === 1 ? 'unidade' : 'unidades'} no período</span></div>`).join('') : '<div class="item"><strong>Sem vendas</strong><span>Nenhuma venda encontrada no período selecionado.</span></div>'}
-    ${payRows.length ? payRows.map(([name, total]) => `<div class="item"><strong>Pagamento: ${esc(name)}</strong><span>${money(total)}</span></div>`).join('') : ''}
+    <div class="item"><strong>Entradas de caixa</strong><span>${money(cashIn)}</span></div>
+    <div class="item"><strong>Saídas de caixa</strong><span>${money(cashOut)}</span></div>
+    ${top.map(([name, count]) => `<div class="item"><strong>${esc(name)}</strong><span>${count} ${count === 1 ? 'unidade' : 'unidades'}</span></div>`).join('')}
+    ${payRows.map(([name, total]) => `<div class="item"><strong>Pagamento: ${esc(name)}</strong><span>${money(total)}</span></div>`).join('')}
   `;
 }
 
@@ -3622,7 +3637,10 @@ els.clearHistoryFiltersBtn?.addEventListener('click', () => {
   renderHistory();
   toast('Filtros limpos.');
 });
-els.reportRange?.addEventListener('change', renderReport);
+els.reportRange?.addEventListener('change', () => {
+  renderReport();
+  els.pdfPanel?.classList.add('hidden');
+});
 els.auditLogFilter?.addEventListener('change', renderAuditLog);
 
 document.querySelectorAll('.tab').forEach((btn) => {
