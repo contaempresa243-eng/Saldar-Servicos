@@ -811,6 +811,29 @@
     </div>
   </div>
   
+ <!-- Modal genérico: alerta -->
+<div id="appAlertModal" class="modal hidden">
+  <div class="modal-content app-alert-content">
+    <div class="app-modal-icon" id="appAlertIcon">ℹ️</div>
+    <h3 class="app-modal-title" id="appAlertTitle">Aviso</h3>
+    <p class="app-modal-message" id="appAlertMessage"></p>
+    <button type="button" class="app-modal-btn primary" id="appAlertOkBtn">OK</button>
+  </div>
+</div>
+
+<!-- Modal genérico: confirmação -->
+<div id="appConfirmModal" class="modal hidden">
+  <div class="modal-content app-alert-content">
+    <div class="app-modal-icon" id="appConfirmIcon">❓</div>
+    <h3 class="app-modal-title" id="appConfirmTitle">Confirmar</h3>
+    <p class="app-modal-message" id="appConfirmMessage"></p>
+    <div class="app-modal-actions">
+      <button type="button" class="app-modal-btn ghost" id="appConfirmCancelBtn">Cancelar</button>
+      <button type="button" class="app-modal-btn primary" id="appConfirmOkBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+ 
 <!-- Modal: escolher período do relatório -->
 <div id="reportRangeModal" class="modal hidden">
   <div class="modal-content range-modal-content">

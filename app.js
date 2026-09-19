@@ -327,6 +327,17 @@ pdfPanel: document.getElementById('pdfPanel'),
 reportRangeLabel: document.getElementById('reportRangeLabel'),
 reportRangeModal: document.getElementById('reportRangeModal'),
 reportRangeCancelBtn: document.getElementById('reportRangeCancelBtn'),
+  appAlertModal: document.getElementById('appAlertModal'),
+appAlertIcon: document.getElementById('appAlertIcon'),
+appAlertTitle: document.getElementById('appAlertTitle'),
+appAlertMessage: document.getElementById('appAlertMessage'),
+appAlertOkBtn: document.getElementById('appAlertOkBtn'),
+appConfirmModal: document.getElementById('appConfirmModal'),
+appConfirmIcon: document.getElementById('appConfirmIcon'),
+appConfirmTitle: document.getElementById('appConfirmTitle'),
+appConfirmMessage: document.getElementById('appConfirmMessage'),
+appConfirmOkBtn: document.getElementById('appConfirmOkBtn'),
+appConfirmCancelBtn: document.getElementById('appConfirmCancelBtn'),
   pdfIncludeSummary: document.getElementById('pdfIncludeSummary'),
 pdfIncludeByProduct: document.getElementById('pdfIncludeByProduct'),
 pdfIncludeByClient: document.getElementById('pdfIncludeByClient'),
@@ -413,6 +424,94 @@ function toast(message, duration = 8000) {
 }
 
 // =====================================================================
+// PATCH 21 — Modais customizados
+// =====================================================================
+
+/**
+ * Modal de alerta customizado (substitui alert()).
+ * Devolve uma Promise que resolve quando o utilizador clica OK.
+ */
+function appAlert(message, title = 'Aviso', icon = 'ℹ️') {
+  return new Promise((resolve) => {
+    if (!els.appAlertModal) {
+      alert(message);
+      return resolve();
+    }
+
+    if (els.appAlertIcon) els.appAlertIcon.textContent = icon;
+    if (els.appAlertTitle) els.appAlertTitle.textContent = title;
+    if (els.appAlertMessage) els.appAlertMessage.textContent = String(message || '');
+
+    els.appAlertModal.classList.remove('hidden');
+
+    const cleanup = () => {
+      els.appAlertModal.classList.add('hidden');
+      els.appAlertOkBtn?.removeEventListener('click', onOk);
+      els.appAlertModal.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onEsc);
+      resolve();
+    };
+
+    const onOk = () => cleanup();
+
+    const onBackdrop = (e) => {
+      if (e.target === els.appAlertModal) cleanup();
+    };
+
+    const onEsc = (e) => {
+      if (e.key === 'Escape') cleanup();
+    };
+
+    els.appAlertOkBtn?.addEventListener('click', onOk);
+    els.appAlertModal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onEsc);
+  });
+}
+
+/**
+ * Modal de confirmação customizado (substitui confirm()).
+ * Devolve uma Promise que resolve com true (OK) ou false (Cancelar).
+ */
+function appConfirm(message, title = 'Confirmar', icon = '❓') {
+  return new Promise((resolve) => {
+    if (!els.appConfirmModal) {
+      return resolve(confirm(message));
+    }
+
+    if (els.appConfirmIcon) els.appConfirmIcon.textContent = icon;
+    if (els.appConfirmTitle) els.appConfirmTitle.textContent = title;
+    if (els.appConfirmMessage) els.appConfirmMessage.textContent = String(message || '');
+
+    els.appConfirmModal.classList.remove('hidden');
+
+    const cleanup = (result) => {
+      els.appConfirmModal.classList.add('hidden');
+      els.appConfirmOkBtn?.removeEventListener('click', onOk);
+      els.appConfirmCancelBtn?.removeEventListener('click', onCancel);
+      els.appConfirmModal.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onEsc);
+      resolve(result);
+    };
+
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+
+    const onBackdrop = (e) => {
+      if (e.target === els.appConfirmModal) cleanup(false);
+    };
+
+    const onEsc = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+    };
+
+    els.appConfirmOkBtn?.addEventListener('click', onOk);
+    els.appConfirmCancelBtn?.addEventListener('click', onCancel);
+    els.appConfirmModal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onEsc);
+  });
+}
+
+// =====================================================================
 // Diagnóstico
 // =====================================================================
 
@@ -448,10 +547,10 @@ window.__saldarLimparCache = async function() {
       const keys = await caches.keys();
       for (const k of keys) await caches.delete(k);
     }
-    alert('✅ Cache limpo. A recarregar...');
-    location.reload(true);
-  } catch (e) {
-    alert('Erro ao limpar: ' + e.message);
+      await appAlert('Cache limpo. A recarregar...', 'Sucesso', '✅');
+  location.reload(true);
+} catch (e) {
+  await appAlert('Erro ao limpar: ' + e.message, 'Erro', '❌');
   }
 };
 
@@ -2311,7 +2410,7 @@ els.loginForm?.addEventListener('submit', async (e) => {
       else if (!session.fbReady) motivo = 'initFirebase não concluiu';
       else motivo = 'api/auth ausente após init';
       _origConsoleError('[Login] Firebase não pronto. Motivo:', motivo);
-      alert('❌ Firebase não está pronto.\n\nMotivo: ' + motivo);
+      await appAlert('Firebase não está pronto.\n\nMotivo: ' + motivo, 'Erro de configuração', '❌');
       els.loginSubmitBtn.textContent = session.authView === 'register' ? 'Criar conta online' : 'Entrar';
       els.loginSubmitBtn.disabled = false;
       return;
@@ -2509,7 +2608,8 @@ els.productCards?.addEventListener('mousedown', async (e) => {
   if (action === 'edit-product') return fillProductForm(id);
 
   if (action === 'delete-product') {
-    if (!confirm('Tem certeza que deseja remover este produto?')) return;
+    const ok = await appConfirm('Tem certeza que deseja remover este produto?', 'Remover produto', '🗑️');
+if (!ok) return;
     const hasHistory = state.history.some((item) => item.productId === id);
     if (hasHistory) return toast('Não é possível remover produto com histórico.');
     state.products = state.products.filter((p) => p.id !== id);
@@ -2703,9 +2803,10 @@ function removeFromCart(index) {
   renderCart();
 }
 
-function clearCart() {
+async function clearCart() {
   if (cart.items.length === 0) return;
-  if (!confirm('Tem certeza que deseja limpar o carrinho?')) return;
+  const ok = await appConfirm('Tem certeza que deseja limpar o carrinho?', 'Limpar carrinho', '🗑️');
+  if (!ok) return;
   cart.items = [];
   renderCart();
 }
@@ -3185,7 +3286,8 @@ els.userList?.addEventListener('click', async (e) => {
   if (action === 'edit-user') return fillUserForm(id);
 
   if (action === 'delete-user') {
-    if (!confirm('Remover este usuário?')) return;
+    const ok = await appConfirm('Remover este usuário?', 'Remover utilizador', '🗑️');
+if (!ok) return;
     const current = getCurrentUser();
     if (current?.id === id) return toast('Não pode remover o seu próprio utilizador.');
 
@@ -3324,7 +3426,8 @@ els.expenseList?.addEventListener('click', async (e) => {
   }
 
   if (action === 'delete-expense') {
-    if (!confirm('Remover esta despesa?')) return;
+    const ok = await appConfirm('Remover esta despesa?', 'Remover despesa', '🗑️');
+if (!ok) return;
     const expense = (state.expenses || []).find(x => x.id === id);
     if (!expense) return;
 
@@ -3450,7 +3553,8 @@ window.__removerCliente = async function(id) {
   if (!requireAdmin()) return;
   const client = (state.clients || []).find(c => c.id === id);
   if (!client) return;
-  if (!confirm(`Remover cliente "${client.name}"?`)) return;
+  const ok = await appConfirm(`Remover cliente "${client.name}"?`, 'Remover cliente', '🗑️');
+if (!ok) return;
 
   state.clients = state.clients.filter(c => c.id !== id);
   await saveState();
@@ -4053,7 +4157,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
     );
   }
 
-    doc.save(`relatorio_${today()}.pdf`);
+    doc.save(`relatorio_${today()}_${Date.now()}.pdf`);
   toast('Relatório PDF gerado com sucesso!');
   els.pdfPanel?.classList.add('hidden');
 });
