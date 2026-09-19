@@ -3705,7 +3705,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(15, 118, 110);
-    doc.text('📊 Resumo financeiro', marginX, cursorY);
+    doc.text('RESUMO FINANCEIRO', marginX, cursorY);
     cursorY += 6;
 
     doc.autoTable({
@@ -3744,7 +3744,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(15, 118, 110);
-      doc.text('📦 Resumo por produto', marginX, cursorY);
+      doc.text('RESUMO POR PRODUTO', marginX, cursorY);
       cursorY += 6;
 
       doc.autoTable({
@@ -3778,7 +3778,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(15, 118, 110);
-      doc.text('👥 Resumo por cliente', marginX, cursorY);
+      doc.text('RESUMO POR CLIENTE', marginX, cursorY);
       cursorY += 6;
 
       doc.autoTable({
@@ -3812,7 +3812,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(15, 118, 110);
-      doc.text('👤 Resumo por operador', marginX, cursorY);
+      doc.text('RESUMO POR OPERADOR', marginX, cursorY);
       cursorY += 6;
 
       doc.autoTable({
@@ -3843,7 +3843,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(15, 118, 110);
-    doc.text('💸 Despesas detalhadas', marginX, cursorY);
+    doc.text('DESPESAS DETALHADAS', marginX, cursorY);
     cursorY += 6;
 
     doc.autoTable({
@@ -3877,7 +3877,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(15, 118, 110);
-    doc.text('📋 Vendas detalhadas', marginX, cursorY);
+    doc.text('VENDAS DETALHADAS', marginX, cursorY);
     cursorY += 6;
 
     doc.autoTable({
