@@ -321,6 +321,12 @@ clearHistoryFiltersBtn: document.getElementById('clearHistoryFiltersBtn'),
   toast: document.getElementById('toast'),
   installBtn: document.getElementById('installBtn'),
   exportPdfBtn: document.getElementById('exportPdfBtn'),
+  pdfIncludeSummary: document.getElementById('pdfIncludeSummary'),
+pdfIncludeByProduct: document.getElementById('pdfIncludeByProduct'),
+pdfIncludeByClient: document.getElementById('pdfIncludeByClient'),
+pdfIncludeByOperator: document.getElementById('pdfIncludeByOperator'),
+pdfIncludeExpenses: document.getElementById('pdfIncludeExpenses'),
+pdfIncludeSales: document.getElementById('pdfIncludeSales'),
   receiptModal: document.getElementById('receiptModal'),
   receiptContent: document.getElementById('receiptContent'),
   closeModal: document.querySelector('.close-modal'),
@@ -3633,37 +3639,287 @@ document.querySelectorAll('.tab').forEach((btn) => {
 
 els.exportPdfBtn?.addEventListener('click', () => {
   if (!requireAdmin()) return;
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
+  // ====== Configuração do período ======
   const range = els.reportRange.value;
-  const sales = salesForRange(range);
-  const revenue = sales.reduce((s, item) => s + Number(item.total || 0), 0);
-  const qty = sales.reduce((s, item) => s + Number(item.quantity || 0), 0);
   const label = range === 'today' ? 'Hoje' : range === '7d' ? 'Últimos 7 dias' : 'Últimos 30 dias';
+  const sales = salesForRange(range);
+  const expenses = getExpensesInRange(range);
 
-  doc.setFontSize(18);
-  doc.text('Saldar Serviços - Relatório', 14, 20);
-  doc.setFontSize(12);
-  doc.text(`Período: ${label}`, 14, 30);
-  doc.text(`Data: ${new Date().toLocaleString('pt-PT')}`, 14, 37);
-  doc.text(`Unidades: ${qty}`, 14, 44);
-  doc.text(`Faturamento: ${money(revenue)}`, 14, 51);
+  const revenue = sales.reduce((s, i) => s + Number(i.total || 0), 0);
+  const qty = sales.reduce((s, i) => s + Number(i.quantity || 0), 0);
+  const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const profit = revenue - totalExpenses;
 
-  if (sales.length > 0) {
-    const tableBody = sales.map(item => [item.productName, item.quantity, money(item.unitPrice), money(item.total), item.paymentMethod, new Date(item.date).toLocaleString('pt-PT')]);
+  const user = getCurrentUser();
+  const emissionDate = new Date().toLocaleString('pt-PT');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+  const contentWidth = pageWidth - marginX * 2;
+
+  let cursorY = 20;
+
+  // ====== Cabeçalho ======
+  // Logo (quadrado teal com SS)
+  doc.setFillColor(15, 118, 110);
+  doc.roundedRect(marginX, cursorY - 8, 16, 16, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.text('SS', marginX + 8, cursorY + 3, { align: 'center' });
+
+  // Nome + slogan
+  doc.setTextColor(15, 118, 110);
+  doc.setFontSize(16);
+  doc.text('SALDAR SERVIÇOS', marginX + 22, cursorY - 2);
+
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'italic');
+  doc.setTextColor(120, 120, 120);
+  doc.text('Gestão simples, resultados reais.', marginX + 22, cursorY + 4);
+
+  cursorY += 14;
+
+  // Linha separadora
+  doc.setDrawColor(200, 200, 200);
+  doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
+  cursorY += 8;
+
+  // Info de período
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(50, 50, 50);
+  doc.text(`Período: ${label}`, marginX, cursorY);
+  doc.text(`Emitido em: ${emissionDate}`, pageWidth - marginX, cursorY, { align: 'right' });
+  cursorY += 5;
+  doc.text(`Emitido por: ${user?.fullName || 'Sistema'}`, marginX, cursorY);
+  cursorY += 10;
+
+  // ====== Secções ======
+
+  // 1. Resumo financeiro
+  if (els.pdfIncludeSummary?.checked) {
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(15, 118, 110);
+    doc.text('📊 Resumo financeiro', marginX, cursorY);
+    cursorY += 6;
+
     doc.autoTable({
-      startY: 58,
-      head: [['Produto', 'Qtd', 'P. Unit.', 'Total', 'Método', 'Data']],
-      body: tableBody, theme: 'striped',
-      headStyles: { fillColor: '#0f766e' },
-      styles: { fontSize: 9, cellPadding: 2 }
+      startY: cursorY,
+      margin: { left: marginX, right: marginX },
+      head: [['Métrica', 'Valor']],
+      body: [
+        ['Total de vendas', String(sales.length)],
+        ['Unidades vendidas', String(qty)],
+        ['Faturamento', money(revenue)],
+        ['Total de despesas', money(totalExpenses)],
+        ['Lucro real', money(profit)]
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [15, 118, 110], fontSize: 10 },
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: { 1: { halign: 'right' } }
     });
-  } else {
-    doc.text('Nenhuma venda no período.', 14, 58);
+    cursorY = doc.lastAutoTable.finalY + 10;
   }
+
+  // 2. Resumo por produto
+  if (els.pdfIncludeByProduct?.checked && sales.length > 0) {
+    const byProduct = {};
+    sales.forEach(s => {
+      const k = s.productName || 'Sem nome';
+      if (!byProduct[k]) byProduct[k] = { qty: 0, total: 0 };
+      byProduct[k].qty += Number(s.quantity || 0);
+      byProduct[k].total += Number(s.total || 0);
+    });
+    const rows = Object.entries(byProduct)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([name, d]) => [name, String(d.qty), money(d.total)]);
+
+    if (rows.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(15, 118, 110);
+      doc.text('📦 Resumo por produto', marginX, cursorY);
+      cursorY += 6;
+
+      doc.autoTable({
+        startY: cursorY,
+        margin: { left: marginX, right: marginX },
+        head: [['Produto', 'Qtd', 'Total']],
+        body: rows,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } }
+      });
+      cursorY = doc.lastAutoTable.finalY + 10;
+    }
+  }
+
+  // 3. Resumo por cliente
+  if (els.pdfIncludeByClient?.checked && sales.length > 0) {
+    const byClient = {};
+    sales.forEach(s => {
+      const k = s.clientName || 'Sem cliente';
+      if (!byClient[k]) byClient[k] = { count: 0, total: 0 };
+      byClient[k].count += 1;
+      byClient[k].total += Number(s.total || 0);
+    });
+    const rows = Object.entries(byClient)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([name, d]) => [name, String(d.count), money(d.total)]);
+
+    if (rows.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(15, 118, 110);
+      doc.text('👥 Resumo por cliente', marginX, cursorY);
+      cursorY += 6;
+
+      doc.autoTable({
+        startY: cursorY,
+        margin: { left: marginX, right: marginX },
+        head: [['Cliente', 'Nº vendas', 'Total']],
+        body: rows,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } }
+      });
+      cursorY = doc.lastAutoTable.finalY + 10;
+    }
+  }
+
+  // 4. Resumo por operador
+  if (els.pdfIncludeByOperator?.checked && sales.length > 0) {
+    const byOp = {};
+    sales.forEach(s => {
+      const k = s.createdByName || 'Sem operador';
+      if (!byOp[k]) byOp[k] = { count: 0, total: 0 };
+      byOp[k].count += 1;
+      byOp[k].total += Number(s.total || 0);
+    });
+    const rows = Object.entries(byOp)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([name, d]) => [name, String(d.count), money(d.total)]);
+
+    if (rows.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(15, 118, 110);
+      doc.text('👤 Resumo por operador', marginX, cursorY);
+      cursorY += 6;
+
+      doc.autoTable({
+        startY: cursorY,
+        margin: { left: marginX, right: marginX },
+        head: [['Operador', 'Nº vendas', 'Total']],
+        body: rows,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } }
+      });
+      cursorY = doc.lastAutoTable.finalY + 10;
+    }
+  }
+
+  // 5. Despesas detalhadas
+  if (els.pdfIncludeExpenses?.checked && expenses.length > 0) {
+    const rows = expenses
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map(e => [
+        new Date(e.date).toLocaleDateString('pt-PT'),
+        EXPENSE_CATEGORIES[e.category]?.label || e.category,
+        e.description || '',
+        money(e.amount)
+      ]);
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(15, 118, 110);
+    doc.text('💸 Despesas detalhadas', marginX, cursorY);
+    cursorY += 6;
+
+    doc.autoTable({
+      startY: cursorY,
+      margin: { left: marginX, right: marginX },
+      head: [['Data', 'Categoria', 'Descrição', 'Valor']],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [220, 38, 38], fontSize: 10 },
+      styles: { fontSize: 9, cellPadding: 2 },
+      columnStyles: { 3: { halign: 'right' } }
+    });
+    cursorY = doc.lastAutoTable.finalY + 10;
+  }
+
+  // 6. Vendas detalhadas
+  if (els.pdfIncludeSales?.checked && sales.length > 0) {
+    const rows = sales
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map(s => [
+        new Date(s.date).toLocaleString('pt-PT'),
+        s.productName || '',
+        String(s.quantity || 0),
+        money(s.unitPrice),
+        money(s.total),
+        s.paymentMethod || '',
+        s.clientName || '',
+        s.createdByName || ''
+      ]);
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(15, 118, 110);
+    doc.text('📋 Vendas detalhadas', marginX, cursorY);
+    cursorY += 6;
+
+    doc.autoTable({
+      startY: cursorY,
+      margin: { left: marginX, right: marginX },
+      head: [['Data', 'Produto', 'Qtd', 'P. Unit.', 'Total', 'Método', 'Cliente', 'Operador']],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 118, 110], fontSize: 8 },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      columnStyles: {
+        2: { halign: 'center' },
+        3: { halign: 'right' },
+        4: { halign: 'right' }
+      }
+    });
+  }
+
+  // ====== Rodapé com paginação ======
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont(undefined, 'italic');
+    doc.text(
+      `© ${new Date().getFullYear()} Saldar Serviços — Gestão e controle`,
+      marginX,
+      pageHeight - 8
+    );
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      pageWidth - marginX,
+      pageHeight - 8,
+      { align: 'right' }
+    );
+  }
+
+  // Guardar
   doc.save(`relatorio_${today()}.pdf`);
-  toast('Relatório PDF exportado com sucesso!');
+  toast('Relatório PDF gerado com sucesso!');
 });
 
 // =====================================================================

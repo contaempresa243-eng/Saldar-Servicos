@@ -420,19 +420,59 @@
       <!-- RELATÓRIO                                              -->
       <!-- ===================================================== -->
       <section class="tab-panel" id="relatorio">
-        <div class="card">
-          <div class="section-head">
-            <div><h3>Relatório por período</h3><p class="mini-text">Analise vendas, quantidades e meios de pagamento.</p></div>
-            <select id="reportRange" class="range-select">
-              <option value="today">Hoje</option>
-              <option value="7d">Últimos 7 dias</option>
-              <option value="30d">Últimos 30 dias</option>
-            </select>
-          </div>
-          <div id="dailyReport" class="list"></div>
-          <button class="primary full-span" id="exportPdfBtn" data-perm="relatorio" style="margin-top: 16px;">📄 Exportar Relatório PDF</button>
-        </div>
-      </section>
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Relatório por período</h3>
+        <p class="mini-text">Analise vendas, quantidades e meios de pagamento.</p>
+      </div>
+      <select id="reportRange" class="range-select">
+        <option value="today">Hoje</option>
+        <option value="7d">Últimos 7 dias</option>
+        <option value="30d">Últimos 30 dias</option>
+      </select>
+    </div>
+    <div id="dailyReport" class="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>📄 Exportar relatório PDF</h3>
+        <p class="mini-text">Escolha as secções a incluir no relatório personalizado. As secções sem dados são omitidas automaticamente.</p>
+      </div>
+    </div>
+
+    <div class="pdf-options">
+      <label class="pdf-option">
+        <input type="checkbox" id="pdfIncludeSummary" checked />
+        <span>📊 Resumo financeiro (vendas, despesas, lucro)</span>
+      </label>
+      <label class="pdf-option">
+        <input type="checkbox" id="pdfIncludeByProduct" checked />
+        <span>📦 Resumo por produto</span>
+      </label>
+      <label class="pdf-option">
+        <input type="checkbox" id="pdfIncludeByClient" checked />
+        <span>👥 Resumo por cliente</span>
+      </label>
+      <label class="pdf-option">
+        <input type="checkbox" id="pdfIncludeByOperator" checked />
+        <span>👤 Resumo por operador</span>
+      </label>
+      <label class="pdf-option">
+        <input type="checkbox" id="pdfIncludeExpenses" checked />
+        <span>💸 Despesas detalhadas</span>
+      </label>
+      <label class="pdf-option">
+        <input type="checkbox" id="pdfIncludeSales" checked />
+        <span>📋 Vendas detalhadas (lista completa)</span>
+      </label>
+    </div>
+
+    <button class="primary full-span" id="exportPdfBtn" data-perm="relatorio" style="margin-top: 16px;">📄 Gerar relatório PDF</button>
+  </div>
+</section>
 
       <section class="tab-panel" id="despesas">
   <div class="card">

@@ -1698,3 +1698,53 @@ td {
     grid-template-columns: 1fr;
   }
 }
+/* ============================================================
+   PATCH 20 — Relatórios PDF customizados (v24)
+   ============================================================ */
+
+.pdf-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pdf-option {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f9fcfe;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.pdf-option:hover {
+  background: #f0fdfa;
+  border-color: var(--primary);
+}
+
+.pdf-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pdf-option span {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .pdf-options {
+    grid-template-columns: 1fr;
+  }
+}
