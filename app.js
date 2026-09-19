@@ -92,10 +92,11 @@ function defaults() {
   { id: uid(), fullName: 'Administrador Geral', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt: now() },
   { id: uid(), fullName: 'Operador de Balcão', username: 'operador', password: '1234', role: 'operador', active: true, createdAt: now() }
 ],
-currentUserId: null,
-auditLog: [],
-clients: []
-  };
+  currentUserId: null,
+  auditLog: [],
+  clients: [],
+  expenses: []
+};
 }
 
 function normalize(raw) {
@@ -116,9 +117,10 @@ function normalize(raw) {
     cashMovements: Array.isArray(raw?.cashMovements) ? raw.cashMovements : [],
     users: Array.isArray(raw?.users) && raw.users.length ? raw.users : base.users,
     currentUserId: raw?.currentUserId || null,
-    auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : [],
-    clients: Array.isArray(raw?.clients) ? raw.clients : []
-  };
+      auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : [],
+  clients: Array.isArray(raw?.clients) ? raw.clients : [],
+  expenses: Array.isArray(raw?.expenses) ? raw.expenses : []
+};
 }
 
 function loadLocal() {
@@ -198,13 +200,13 @@ const PERMISSIONS = {
     admin: true, dashboard: true, verFinanceiro: true, verSaldoCaixa: true,
     produtos: true, stock: true, venda: true, vendaDesconto: true, caixa: true,
     historico: true, historicoTodos: true, relatorio: true, usuarios: true,
-    clientes: true, exportar: true, backup: true, nuvem: true, auditoria: true
+    clientes: true, despesas: true, exportar: true, backup: true, nuvem: true, auditoria: true
   },
   operador: {
     admin: false, dashboard: true, verFinanceiro: false, verSaldoCaixa: false,
     produtos: false, stock: false, venda: true, vendaDesconto: false, caixa: false,
     historico: true, historicoTodos: false, relatorio: false, usuarios: false,
-    clientes: false, exportar: false, backup: false, nuvem: false, auditoria: false
+    clientes: false, despesas: false, exportar: false, backup: false, nuvem: false, auditoria: false
   }
 };
 
@@ -362,6 +364,19 @@ productPriceVip: document.getElementById('productPriceVip'),
   quickClientSaveBtn: document.getElementById('quickClientSaveBtn'),
   clientHistoryModal: document.getElementById('clientHistoryModal'),
   clientHistoryContent: document.getElementById('clientHistoryContent'),
+  expenseForm: document.getElementById('expenseForm'),
+expenseEditId: document.getElementById('expenseEditId'),
+expenseDate: document.getElementById('expenseDate'),
+expenseCategory: document.getElementById('expenseCategory'),
+expenseAmount: document.getElementById('expenseAmount'),
+expenseDescription: document.getElementById('expenseDescription'),
+expenseNotes: document.getElementById('expenseNotes'),
+expenseFormMode: document.getElementById('expenseFormMode'),
+cancelExpenseEditBtn: document.getElementById('cancelExpenseEditBtn'),
+expenseRange: document.getElementById('expenseRange'),
+expenseSummary: document.getElementById('expenseSummary'),
+expenseFilter: document.getElementById('expenseFilter'),
+expenseList: document.getElementById('expenseList'),
 exportSalesCsvBtn: document.getElementById('exportSalesCsvBtn'),
 exportStockCsvBtn: document.getElementById('exportStockCsvBtn'),
 exportClientsCsvBtn: document.getElementById('exportClientsCsvBtn'),
@@ -1121,6 +1136,133 @@ function renderUsers() {
 }
 
 // =====================================================================
+// DESPESAS — Cálculos e render (Patch 18)
+// =====================================================================
+
+/**
+ * Devolve as despesas filtradas por período.
+ * range: 'today' | '7d' | '30d' | 'month'
+ */
+function getExpensesInRange(range) {
+  const all = state.expenses || [];
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+
+  if (range === 'today') {
+    const iso = today();
+    return all.filter(e => (e.date || '').slice(0, 10) === iso);
+  }
+  if (range === '7d') start.setDate(start.getDate() - 6);
+  if (range === '30d') start.setDate(start.getDate() - 29);
+  if (range === 'month') {
+    start.setDate(1);
+    start.setMonth(now.getMonth());
+  }
+
+  return all.filter(e => {
+    const d = new Date(e.date);
+    return d >= start;
+  });
+}
+
+function renderExpenseSummary() {
+  if (!els.expenseSummary) return;
+
+  const range = els.expenseRange?.value || 'month';
+  const expenses = getExpensesInRange(range);
+  const total = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const count = expenses.length;
+
+  const sales = range === 'today' ? getTodaySales() : salesForRange(range);
+  const salesTotal = sales.reduce((s, h) => s + Number(h.total || 0), 0);
+  const profit = salesTotal - total;
+
+  const byCategory = {};
+  expenses.forEach(e => {
+    const cat = e.category || 'outra';
+    byCategory[cat] = (byCategory[cat] || 0) + Number(e.amount || 0);
+  });
+
+  const catRows = Object.entries(byCategory)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, val]) => {
+      const info = EXPENSE_CATEGORIES[cat] || EXPENSE_CATEGORIES.outra;
+      return `
+        <div class="expense-category-total">
+          <strong>${esc(info.label)}</strong>
+          <span>${money(val)}</span>
+        </div>
+      `;
+    }).join('');
+
+  const profitClass = profit >= 0 ? 'positive' : 'negative';
+
+  els.expenseSummary.innerHTML = `
+    <div class="expense-summary-grid">
+      <div class="expense-summary-box">
+        <small>Total de despesas</small>
+        <strong>${money(total)}</strong>
+      </div>
+      <div class="expense-summary-box">
+        <small>Nº de despesas</small>
+        <strong>${count}</strong>
+      </div>
+      <div class="expense-summary-box">
+        <small>Vendas no período</small>
+        <strong>${money(salesTotal)}</strong>
+      </div>
+      <div class="expense-summary-box highlight ${profitClass}">
+        <small>Lucro real</small>
+        <strong>${money(profit)}</strong>
+      </div>
+    </div>
+    ${catRows || '<div class="item empty-state">Sem despesas no período.</div>'}
+  `;
+}
+
+function renderExpenses() {
+  if (!els.expenseList) return;
+
+  const filter = els.expenseFilter?.value || 'todas';
+  let expenses = (state.expenses || []).slice();
+
+  if (filter !== 'todas') {
+    expenses = expenses.filter(e => e.category === filter);
+  }
+
+  expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (expenses.length === 0) {
+    els.expenseList.innerHTML = '<div class="item empty-state">Nenhuma despesa registada.</div>';
+    return;
+  }
+
+  els.expenseList.innerHTML = expenses.slice(0, 100).map(e => {
+    const info = EXPENSE_CATEGORIES[e.category] || EXPENSE_CATEGORIES.outra;
+    const dateStr = new Date(e.date).toLocaleDateString('pt-PT');
+    return `
+      <div class="item">
+        <div class="expense-item-row">
+          <div class="expense-item-info">
+            <strong>${esc(e.description || 'Sem descrição')}</strong>
+            <small>${esc(dateStr)} • <span class="expense-category-badge ${esc(info.class)}">${esc(info.label)}</span></small>
+            ${e.notes ? `<small>📝 ${esc(e.notes)}</small>` : ''}
+          </div>
+          <div class="expense-item-meta">
+            <span class="expense-amount">${money(e.amount)}</span>
+          </div>
+        </div>
+        <div class="expense-item-actions">
+          <button type="button" class="secondary-btn" data-action="edit-expense" data-id="${esc(e.id)}">Editar</button>
+          <button type="button" class="danger-btn" data-action="delete-expense" data-id="${esc(e.id)}">Remover</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// =====================================================================
 // CLIENTES — Render (Patch 13)
 // =====================================================================
 
@@ -1279,6 +1421,8 @@ function renderAll() {
   try { renderClients(); } catch (e) { _origConsoleError('[renderClients]', e); }
   try { renderMonthComparison(); } catch (e) { _origConsoleError('[renderMonthComparison]', e); }
 try { renderCharts(); } catch (e) { _origConsoleError('[renderCharts]', e); }
+  try { renderExpenseSummary(); } catch (e) { _origConsoleError('[renderExpenseSummary]', e); }
+try { renderExpenses(); } catch (e) { _origConsoleError('[renderExpenses]', e); }
 }
 // =====================================================================
 // Forms
@@ -2645,6 +2789,41 @@ document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
   toast('Movimento de caixa registrado.');
 });
 
+// =====================================================================
+// DESPESAS — Patch 18
+// =====================================================================
+
+const EXPENSE_CATEGORIES = {
+  luz:          { label: '💡 Luz',        class: 'luz' },
+  agua:         { label: '💧 Água',       class: 'agua' },
+  renda:        { label: '🏠 Renda',      class: 'renda' },
+  salarios:     { label: '👥 Salários',   class: 'salarios' },
+  internet:     { label: '🌐 Internet',   class: 'internet' },
+  combustivel:  { label: '⛽ Combustível', class: 'combustivel' },
+  manutencao:   { label: '🔧 Manutenção', class: 'manutencao' },
+  outra:        { label: '📦 Outra',      class: 'outra' }
+};
+
+function resetExpenseForm() {
+  els.expenseForm?.reset();
+  if (els.expenseEditId) els.expenseEditId.value = '';
+  if (els.expenseFormMode) els.expenseFormMode.textContent = 'Nova despesa';
+  if (els.expenseDate) els.expenseDate.value = today();
+}
+
+function fillExpenseForm(id) {
+  const expense = (state.expenses || []).find(e => e.id === id);
+  if (!expense) return toast('Despesa não encontrada.');
+
+  els.expenseEditId.value = expense.id;
+  if (els.expenseDate) els.expenseDate.value = expense.date || today();
+  if (els.expenseCategory) els.expenseCategory.value = expense.category || 'outra';
+  if (els.expenseAmount) els.expenseAmount.value = expense.amount || 0;
+  if (els.expenseDescription) els.expenseDescription.value = expense.description || '';
+  if (els.expenseNotes) els.expenseNotes.value = expense.notes || '';
+  if (els.expenseFormMode) els.expenseFormMode.textContent = 'Editando despesa';
+  activate('despesas');
+}
 
 // =====================================================================
 // CLIENTES — Patch 13
@@ -2946,6 +3125,101 @@ els.userList?.addEventListener('click', async (e) => {
       renderAll();
       toast('Palavra-passe local redefinida.');
     }
+  }
+});
+
+// =====================================================================
+// DESPESAS — Handlers (Patch 18)
+// =====================================================================
+
+els.expenseForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!requireAdmin()) return;
+
+  const editingId = els.expenseEditId.value;
+  const payload = {
+    date: els.expenseDate.value || today(),
+    category: els.expenseCategory.value,
+    amount: Number(els.expenseAmount.value),
+    description: els.expenseDescription.value.trim(),
+    notes: els.expenseNotes.value.trim()
+  };
+
+  if (!payload.amount || payload.amount <= 0) return toast('Insira um valor válido.');
+  if (!payload.description) return toast('Preencha a descrição.');
+
+  if (!state.expenses) state.expenses = [];
+
+  if (editingId) {
+    const expense = state.expenses.find(x => x.id === editingId);
+    if (!expense) return toast('Despesa não encontrada.');
+    Object.assign(expense, payload);
+    await saveState();
+    await logAudit('despesa-editar', {
+      expenseId: editingId,
+      category: payload.category,
+      amount: payload.amount
+    });
+    resetExpenseForm();
+    renderAll();
+    toast('Despesa atualizada.');
+    return;
+  }
+
+  const newExpense = {
+    id: uid(),
+    ...payload,
+    createdById: getCurrentUser()?.id || '',
+    createdByName: getCurrentUser()?.fullName || '',
+    createdAt: now()
+  };
+
+  state.expenses.push(newExpense);
+  await saveState();
+  await logAudit('despesa-criar', {
+    expenseId: newExpense.id,
+    category: newExpense.category,
+    amount: newExpense.amount,
+    description: newExpense.description
+  });
+
+  resetExpenseForm();
+  renderAll();
+  toast('Despesa registada.');
+});
+
+els.cancelExpenseEditBtn?.addEventListener('click', resetExpenseForm);
+
+els.expenseRange?.addEventListener('change', renderExpenseSummary);
+els.expenseFilter?.addEventListener('change', renderExpenses);
+
+els.expenseList?.addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action]');
+  if (!button || !isAdmin()) return;
+
+  const id = button.dataset.id;
+  const action = button.dataset.action;
+
+  if (action === 'edit-expense') {
+    fillExpenseForm(id);
+    return;
+  }
+
+  if (action === 'delete-expense') {
+    if (!confirm('Remover esta despesa?')) return;
+    const expense = (state.expenses || []).find(x => x.id === id);
+    if (!expense) return;
+
+    state.expenses = state.expenses.filter(x => x.id !== id);
+    await saveState();
+    await logAudit('despesa-remover', {
+      expenseId: id,
+      category: expense.category,
+      amount: expense.amount
+    });
+
+    renderAll();
+    toast('Despesa removida.');
   }
 });
 

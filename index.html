@@ -169,6 +169,7 @@
       <button class="tab" data-tab="produtos" data-group="gestao" data-role="admin">Produtos</button>
       <button class="tab" data-tab="usuarios" data-group="gestao" data-role="admin">Usuários</button>
       <button class="tab" data-tab="clientes" data-group="gestao" data-role="admin">Clientes</button>
+      <button class="tab" data-tab="despesas" data-group="gestao" data-role="admin">Despesas</button>
       <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
       <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
 
@@ -387,6 +388,78 @@
           <button class="primary full-span" id="exportPdfBtn" data-perm="relatorio" style="margin-top: 16px;">📄 Exportar Relatório PDF</button>
         </div>
       </section>
+
+      <section class="tab-panel" id="despesas">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Nova despesa</h3>
+        <p class="mini-text">Registe as despesas do negócio para calcular o lucro real.</p>
+      </div>
+      <span class="badge info" id="expenseFormMode">Nova despesa</span>
+    </div>
+    <form id="expenseForm" class="form-grid">
+      <input type="hidden" id="expenseEditId" />
+      <label>Data<input type="date" id="expenseDate" required /></label>
+      <label>Categoria
+        <select id="expenseCategory" required>
+          <option value="luz">💡 Luz</option>
+          <option value="agua">💧 Água</option>
+          <option value="renda">🏠 Renda</option>
+          <option value="salarios">👥 Salários</option>
+          <option value="internet">🌐 Internet</option>
+          <option value="combustivel">⛽ Combustível</option>
+          <option value="manutencao">🔧 Manutenção</option>
+          <option value="outra">📦 Outra</option>
+        </select>
+      </label>
+      <label>Valor (AOA)<input type="number" id="expenseAmount" min="0" step="0.01" required /></label>
+      <label>Descrição<input type="text" id="expenseDescription" placeholder="Ex.: Fatura de Setembro" required /></label>
+      <label class="full-span">Observações<input type="text" id="expenseNotes" placeholder="Opcional" /></label>
+      <div class="button-row full-span">
+        <button class="primary" type="submit">Guardar despesa</button>
+        <button class="ghost" type="button" id="cancelExpenseEditBtn">Cancelar edição</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Resumo de despesas</h3>
+        <p class="mini-text">Total gasto por período e categoria.</p>
+      </div>
+      <select id="expenseRange" class="range-select">
+        <option value="today">Hoje</option>
+        <option value="7d">Últimos 7 dias</option>
+        <option value="30d">Últimos 30 dias</option>
+        <option value="month" selected>Este mês</option>
+      </select>
+    </div>
+    <div id="expenseSummary" class="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Histórico de despesas</h3>
+        <p class="mini-text">Todas as despesas registadas.</p>
+      </div>
+      <select id="expenseFilter" class="range-select">
+        <option value="todas">Todas as categorias</option>
+        <option value="luz">💡 Luz</option>
+        <option value="agua">💧 Água</option>
+        <option value="renda">🏠 Renda</option>
+        <option value="salarios">👥 Salários</option>
+        <option value="internet">🌐 Internet</option>
+        <option value="combustivel">⛽ Combustível</option>
+        <option value="manutencao">🔧 Manutenção</option>
+        <option value="outra">📦 Outra</option>
+      </select>
+    </div>
+    <div id="expenseList" class="list"></div>
+  </div>
+</section>
 
       <!-- ===================================================== -->
       <!-- CLIENTES                                               -->

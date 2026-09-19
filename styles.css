@@ -1515,3 +1515,145 @@ td {
 #productPriceVip {
   font-size: 14px;
 }
+/* ============================================================
+   PATCH 18 — Despesas operacionais (v22)
+   ============================================================ */
+
+.expense-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.expense-summary-box {
+  background: #f9fcfe;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  text-align: center;
+}
+
+.expense-summary-box small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.expense-summary-box strong {
+  display: block;
+  font-size: 16px;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.expense-summary-box.negative strong {
+  color: var(--danger);
+}
+
+.expense-summary-box.positive strong {
+  color: #059669;
+}
+
+.expense-summary-box.highlight {
+  background: linear-gradient(135deg, #f0fdfa, #fff);
+  border-color: var(--primary);
+}
+
+/* Cartão individual de despesa */
+.expense-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.expense-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.expense-item-info strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.expense-item-info small {
+  color: var(--muted);
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+}
+
+.expense-item-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.expense-item-meta .expense-amount {
+  font-weight: 700;
+  color: var(--danger);
+  font-size: 15px;
+}
+
+.expense-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.expense-item-actions button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* Badge de categoria */
+.expense-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.expense-category-badge.luz { background: #fef3c7; color: #92400e; }
+.expense-category-badge.agua { background: #dbeafe; color: #1e40af; }
+.expense-category-badge.renda { background: #fce7f3; color: #9f1239; }
+.expense-category-badge.salarios { background: #d1fae5; color: #065f46; }
+.expense-category-badge.internet { background: #e0e7ff; color: #3730a3; }
+.expense-category-badge.combustivel { background: #fee2e2; color: #991b1b; }
+.expense-category-badge.manutencao { background: #ffedd5; color: #9a3412; }
+.expense-category-badge.outra { background: #f3f4f6; color: #374151; }
+
+/* Resumo por categoria no histórico */
+.expense-category-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+.expense-category-total strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.expense-category-total span {
+  color: var(--danger);
+  font-weight: 700;
+}
