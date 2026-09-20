@@ -412,7 +412,17 @@ exportClientsCsvBtn: document.getElementById('exportClientsCsvBtn'),
 exportAuditCsvBtn: document.getElementById('exportAuditCsvBtn'),
 monthComparison: document.getElementById('monthComparison'),
 chartSales7d: document.getElementById('chartSales7d'),
-chartTopProducts: document.getElementById('chartTopProducts')
+chartTopProducts: document.getElementById('chartTopProducts'),
+  panelDetailModal: document.getElementById('panelDetailModal'),
+panelDetailTitle: document.getElementById('panelDetailTitle'),
+panelDetailBody: document.getElementById('panelDetailBody'),
+panelDetailClose: document.getElementById('panelDetailClose'),
+panelProductsCount: document.getElementById('panelProductsCount'),
+panelLowStockCount: document.getElementById('panelLowStockCount'),
+panelTopSalesCount: document.getElementById('panelTopSalesCount'),
+panelPaymentsTotal: document.getElementById('panelPaymentsTotal'),
+panelActivityCount: document.getElementById('panelActivityCount'),
+panelFinanceiroTotal: document.getElementById('panelFinanceiroTotal')
 };
 
 function toast(message, duration = 8000) {
@@ -1055,6 +1065,27 @@ function renderDashboard() {
         }).join('')
       : '<div class="item"><strong>Sem movimentações</strong><span>As últimas ações do sistema aparecerão aqui.</span></div>';
   }
+  // Mini-cartões do Painel
+if (els.panelProductsCount) {
+  els.panelProductsCount.textContent =
+    `${state.products.length} ${state.products.length === 1 ? 'produto' : 'produtos'}`;
+}
+if (els.panelLowStockCount) {
+  const n = state.products.filter(p => Number(p.stock || 0) <= Number(p.minStock || 0)).length;
+  els.panelLowStockCount.textContent = n === 0 ? 'Sem alertas' : `${n} ${n === 1 ? 'alerta' : 'alertas'}`;
+}
+if (els.panelTopSalesCount) {
+  const t = topSalesToday();
+  els.panelTopSalesCount.textContent = t.length === 0 ? 'Sem vendas' : `Top: ${t[0][0]}`;
+}
+if (els.panelPaymentsTotal) {
+  const p = paymentBreakdownToday();
+  const total = p.reduce((s, [, v]) => s + v, 0);
+  els.panelPaymentsTotal.textContent = p.length === 0 ? 'Sem pagamentos' : money(total);
+}
+if (els.panelActivityCount) {
+  els.panelActivityCount.textContent = `${recentActivities().length} recentes`;
+}
 }
 
 function renderProductCards() {
@@ -1328,6 +1359,13 @@ function renderDashboardFinanceiro() {
       </div>
     </div>
   `;
+  // Mini-cartão financeiro
+if (els.panelFinanceiroTotal && can('verFinanceiro')) {
+  const vendas   = state.history.filter(h => h.type === 'venda').reduce((s, i) => s + Number(i.total || 0), 0);
+  const entradas = state.cashMovements.filter(m => m.kind === 'entrada').reduce((s, m) => s + Number(m.amount || 0), 0);
+  const saidas   = state.cashMovements.filter(m => m.kind === 'saida').reduce((s, m) => s + Number(m.amount || 0), 0);
+  els.panelFinanceiroTotal.textContent = money(vendas + entradas - saidas);
+}
 }
 
 function renderUsers() {
@@ -4342,6 +4380,61 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     const m = document.getElementById('lowStockModal');
     if (m && !m.classList.contains('hidden')) m.classList.add('hidden');
+  }
+});
+
+// =====================================================================
+// PAINEL — Mini-cartões + sheet de detalhe
+// =====================================================================
+
+const PANEL_DETAILS = {
+  products:   { title: '📦 Produtos cadastrados',
+                render: () => els.productSummary?.innerHTML || '<div class="item empty-state">Sem produtos.</div>' },
+  lowStock:   { title: '⚠️ Alertas de stock baixo',
+                render: () => els.lowStockList?.innerHTML || '<div class="item empty-state">Sem alertas.</div>' },
+  topSales:   { title: '🏆 Mais vendidos hoje',
+                render: () => els.topSalesList?.innerHTML || '<div class="item empty-state">Sem vendas hoje.</div>' },
+  payments:   { title: '💳 Pagamentos do dia',
+                render: () => els.paymentSummary?.innerHTML || '<div class="item empty-state">Sem pagamentos hoje.</div>' },
+  activity:   { title: '🕒 Atividade recente',
+                render: () => els.recentActivity?.innerHTML || '<div class="item empty-state">Sem movimentações.</div>' },
+  financeiro: { title: '💰 Dashboard financeiro',
+                render: () => els.financeiroContent?.innerHTML || '<div class="item empty-state">Sem dados.</div>' }
+};
+
+function openPanelDetail(type) {
+  const cfg = PANEL_DETAILS[type];
+  if (!cfg || !els.panelDetailModal) return;
+
+  try { renderDashboard(); } catch (e) { _origConsoleError('[openPanelDetail/renderDashboard]', e); }
+  try { renderDashboardFinanceiro(); } catch (e) { _origConsoleError('[openPanelDetail/renderDashboardFinanceiro]', e); }
+
+  if (els.panelDetailTitle) els.panelDetailTitle.textContent = cfg.title;
+  if (els.panelDetailBody)  els.panelDetailBody.innerHTML = cfg.render();
+
+  els.panelDetailModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePanelDetail() {
+  if (!els.panelDetailModal) return;
+  els.panelDetailModal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+document.querySelectorAll('.panel-card').forEach((card) => {
+  card.addEventListener('click', () => openPanelDetail(card.dataset.detail));
+});
+
+els.panelDetailClose?.addEventListener('click', closePanelDetail);
+
+els.panelDetailModal?.addEventListener('click', (e) => {
+  if (e.target === els.panelDetailModal) closePanelDetail();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && els.panelDetailModal && !els.panelDetailModal.classList.contains('hidden')) {
+    closePanelDetail();
   }
 });
 

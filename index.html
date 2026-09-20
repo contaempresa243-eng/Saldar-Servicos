@@ -179,42 +179,85 @@
     </nav>
 
     <main>
-      <!-- ===================================================== -->
-      <!-- DASHBOARD                                              -->
-      <!-- ===================================================== -->
-      <section class="tab-panel active" id="dashboard">
-        <div class="dashboard-grid">
-          <div class="card"><h3>Produtos cadastrados</h3><div id="productSummary" class="list compact"></div></div>
-          <div class="card"><h3>Alertas de stock baixo</h3><div id="lowStockList" class="list compact"></div></div>
-          <div class="card"><h3>Mais vendidos hoje</h3><div id="topSalesList" class="list"></div></div>
-          <div class="card"><h3>Pagamentos do dia</h3><div id="paymentSummary" class="list"></div></div>
-          <div class="card full-width-card"><h3>Atividade recente</h3><div id="recentActivity" class="list"></div></div>
+      <!-- ============ DASHBOARD ============ -->
+<section class="tab-panel active" id="dashboard">
 
-          <div class="card full-width-card" id="financeiroCard" data-perm="verFinanceiro">
-            <h3>📊 Dashboard Financeiro</h3>
-            <div id="financeiroContent" class="list"></div>
-          </div>
+  <!-- ===== GRELHA DE MINI-CARTÕES CLICÁVEIS ===== -->
+  <div class="panel-grid">
 
-          <div class="card full-width-card" data-perm="verFinanceiro">
-            <h3>📅 Comparação mensal</h3>
-            <div id="monthComparison" class="month-comparison"></div>
-          </div>
+    <button type="button" class="panel-card" data-detail="products">
+      <span class="panel-card-icon">📦</span>
+      <strong>Produtos</strong>
+      <small id="panelProductsCount">—</small>
+    </button>
 
-          <div class="card full-width-card" data-perm="verFinanceiro">
-            <h3>📈 Vendas dos últimos 7 dias</h3>
-            <div class="chart-container">
-              <canvas id="chartSales7d"></canvas>
-            </div>
-          </div>
+    <button type="button" class="panel-card" data-detail="lowStock">
+      <span class="panel-card-icon">⚠️</span>
+      <strong>Alertas de stock</strong>
+      <small id="panelLowStockCount">—</small>
+    </button>
 
-          <div class="card full-width-card" data-perm="verFinanceiro">
-            <h3>🏆 Top 5 produtos (últimos 30 dias)</h3>
-            <div class="chart-container">
-              <canvas id="chartTopProducts"></canvas>
-            </div>
-          </div>
-        </div>
-      </section>
+    <button type="button" class="panel-card" data-detail="topSales">
+      <span class="panel-card-icon">🏆</span>
+      <strong>Mais vendidos</strong>
+      <small id="panelTopSalesCount">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="payments">
+      <span class="panel-card-icon">💳</span>
+      <strong>Pagamentos</strong>
+      <small id="panelPaymentsTotal">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="activity">
+      <span class="panel-card-icon">🕒</span>
+      <strong>Atividade</strong>
+      <small id="panelActivityCount">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="financeiro">
+      <span class="panel-card-icon">💰</span>
+      <strong>Financeiro</strong>
+      <small id="panelFinanceiroTotal">—</small>
+    </button>
+
+  </div>
+
+  <!-- ===== GRÁFICOS E COMPARAÇÃO MENSAL (ficam visíveis) ===== -->
+  <div class="dashboard-grid">
+
+    <div class="card full-width-card" data-perm="verFinanceiro">
+      <h3>📅 Comparação mensal</h3>
+      <div id="monthComparison" class="month-comparison"></div>
+    </div>
+
+    <div class="card full-width-card" data-perm="verFinanceiro">
+      <h3>📈 Vendas dos últimos 7 dias</h3>
+      <div class="chart-container">
+        <canvas id="chartSales7d"></canvas>
+      </div>
+    </div>
+
+    <div class="card full-width-card" data-perm="verFinanceiro">
+      <h3>🏆 Top 5 produtos (últimos 30 dias)</h3>
+      <div class="chart-container">
+        <canvas id="chartTopProducts"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== CONTENTORES ESCONDIDOS (o app.js continua a escrever aqui) ===== -->
+  <div style="display:none" aria-hidden="true">
+    <div id="productSummary"></div>
+    <div id="lowStockList"></div>
+    <div id="topSalesList"></div>
+    <div id="paymentSummary"></div>
+    <div id="recentActivity"></div>
+    <div id="financeiroContent"></div>
+  </div>
+
+</section>
 
       <!-- ===================================================== -->
       <!-- PRODUTOS                                               -->
@@ -854,5 +897,18 @@
   <div id="toast" class="toast hidden"></div>
 
   <script type="module" src="app.js"></script>
+
+  <!-- ===== Sheet de detalhe do Painel ===== -->
+<div id="panelDetailModal" class="panel-detail-modal hidden">
+  <div class="panel-detail-sheet" role="dialog" aria-modal="true">
+    <div class="panel-detail-header">
+      <h2 id="panelDetailTitle">Detalhes</h2>
+      <button id="panelDetailClose" class="panel-detail-close" aria-label="Fechar">✕</button>
+    </div>
+    <div class="panel-detail-body" id="panelDetailBody">
+      <!-- conteúdo injetado via JS -->
+    </div>
+  </div>
+</div>
 </body>
 </html>
