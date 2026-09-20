@@ -302,30 +302,31 @@
       </section>
 
       <!-- ===================================================== -->
-      <!-- STOCK                                                  -->
-      <!-- ===================================================== -->
-      <section class="tab-panel" id="stock">
-        <div class="card">
-          <h3>Entrada de stock</h3>
-          <form id="stockForm" class="form-grid">
-            <label>Produto<select id="stockProduct"></select></label>
-            <label>Valor / Unidades adicionadas<input type="number" id="stockQty" min="0.01" step="0.01" required /></label>
-            <label>Alerta mínimo<input type="number" id="stockMin" min="0" step="0.01" required /></label>
-            <label class="full-span">Observação<input type="text" id="stockNote" placeholder="Ex.: reposição da manhã" /></label>
-            <button class="primary full-span" type="submit">Registrar entrada</button>
-          </form>
-        </div>
-        <div class="card">
-          <h3>Estado do stock</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Produto</th><th>Categoria</th><th>Stock</th><th>Mínimo</th><th>Preço</th></tr></thead>
-              <tbody id="stockTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+<!-- STOCK                                                  -->
+<!-- ===================================================== -->
+<section class="tab-panel" id="stock">
 
+  <!-- Mini-cartão clicável -->
+  <div class="panel-grid">
+    <button type="button" class="panel-card" id="openStockEntryBtn">
+      <span class="panel-card-icon">📥</span>
+      <strong>Entrada de stock</strong>
+      <small>Registar nova entrada</small>
+    </button>
+  </div>
+
+  <!-- Estado do stock -->
+  <div class="card">
+    <h3>Estado do stock</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Produto</th><th>Categoria</th><th>Stock</th><th>Mínimo</th><th>Preço</th></tr></thead>
+        <tbody id="stockTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</section>
       <!-- ===================================================== -->
       <!-- VENDA                                                  -->
       <!-- ===================================================== -->
@@ -907,6 +908,24 @@
     </div>
     <div class="panel-detail-body" id="panelDetailBody">
       <!-- conteúdo injetado via JS -->
+    </div>
+  </div>
+</div>
+  <!-- ===== Sheet: Registar entrada de stock ===== -->
+<div id="stockEntryModal" class="panel-detail-modal hidden">
+  <div class="panel-detail-sheet" role="dialog" aria-modal="true">
+    <div class="panel-detail-header">
+      <h2>📥 Registar entrada de stock</h2>
+      <button id="stockEntryClose" class="panel-detail-close" aria-label="Fechar">✕</button>
+    </div>
+    <div class="panel-detail-body">
+      <form id="stockForm" class="form-grid">
+        <label>Produto<select id="stockProduct"></select></label>
+        <label>Valor / Unidades adicionadas<input type="number" id="stockQty" min="0.01" step="0.01" required /></label>
+        <label>Alerta mínimo<input type="number" id="stockMin" min="0" step="0.01" required /></label>
+        <label class="full-span">Observação<input type="text" id="stockNote" placeholder="Ex.: reposição da manhã" /></label>
+        <button class="primary full-span" type="submit">Registrar entrada</button>
+      </form>
     </div>
   </div>
 </div>

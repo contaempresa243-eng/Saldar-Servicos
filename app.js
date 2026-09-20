@@ -422,7 +422,10 @@ panelLowStockCount: document.getElementById('panelLowStockCount'),
 panelTopSalesCount: document.getElementById('panelTopSalesCount'),
 panelPaymentsTotal: document.getElementById('panelPaymentsTotal'),
 panelActivityCount: document.getElementById('panelActivityCount'),
-panelFinanceiroTotal: document.getElementById('panelFinanceiroTotal')
+panelFinanceiroTotal: document.getElementById('panelFinanceiroTotal'),
+  stockEntryModal: document.getElementById('stockEntryModal'),
+stockEntryClose: document.getElementById('stockEntryClose'),
+openStockEntryBtn: document.getElementById('openStockEntryBtn')
 };
 
 function toast(message, duration = 8000) {
@@ -2692,6 +2695,7 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   syncMin();
   renderAll();
   toast('Entrada de stock registrada com sucesso.');
+  closeStockEntrySheet();
 });
 
 // =====================================================================
@@ -4435,6 +4439,40 @@ els.panelDetailModal?.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && els.panelDetailModal && !els.panelDetailModal.classList.contains('hidden')) {
     closePanelDetail();
+  }
+});
+
+// =====================================================================
+// SHEET — Registar entrada de stock
+// =====================================================================
+
+function openStockEntrySheet() {
+  if (!els.stockEntryModal) return;
+  els.stockEntryModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  // Sincronizar o select de produto
+  if (typeof renderSelectOptions === 'function') {
+    try { renderSelectOptions(); } catch (e) { _origConsoleError('[openStockEntrySheet]', e); }
+  }
+  setTimeout(() => els.stockProduct?.focus(), 200);
+}
+
+function closeStockEntrySheet() {
+  if (!els.stockEntryModal) return;
+  els.stockEntryModal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+els.openStockEntryBtn?.addEventListener('click', openStockEntrySheet);
+els.stockEntryClose?.addEventListener('click', closeStockEntrySheet);
+
+els.stockEntryModal?.addEventListener('click', (e) => {
+  if (e.target === els.stockEntryModal) closeStockEntrySheet();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && els.stockEntryModal && !els.stockEntryModal.classList.contains('hidden')) {
+    closeStockEntrySheet();
   }
 });
 
