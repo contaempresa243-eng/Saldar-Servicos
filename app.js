@@ -72,38 +72,93 @@ const chartInstances = {
 // =====================================================================
 
 function defaults() {
+  const storeId = 'store-main-' + uid();
+  const storeName = 'Loja Principal';
+
   return {
-    products: [
-      { id: uid(), name: 'Afrimoney', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Unitel Money', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Unitel mSeller', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'ZAP', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'DStv', category: 'RL', stock: 0, minStock: 0, price: 0, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Africel 1000', category: 'CF', stock: 0, minStock: 0, price: 1000, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Africel 500', category: 'CF', stock: 0, minStock: 0, price: 500, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Africel 200', category: 'CF', stock: 0, minStock: 0, price: 200, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Unitel 1000', category: 'CF', stock: 0, minStock: 0, price: 1000, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Unitel 500', category: 'CF', stock: 0, minStock: 0, price: 500, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
-{ id: uid(), name: 'Unitel 200', category: 'CF', stock: 0, minStock: 0, price: 200, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 }
+    stores: [
+      { id: storeId, name: storeName, createdAt: now() }
     ],
-    history: [],
-    cashMovements: [],
+    currentStoreId: storeId,
+    storesData: {
+      [storeId]: {
+        products: [
+          { id: uid(), name: 'Afrimoney',      category: 'RL', stock: 0, minStock: 0, price: 0,    priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Unitel Money',   category: 'RL', stock: 0, minStock: 0, price: 0,    priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Unitel mSeller', category: 'RL', stock: 0, minStock: 0, price: 0,    priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'ZAP',            category: 'RL', stock: 0, minStock: 0, price: 0,    priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'DStv',           category: 'RL', stock: 0, minStock: 0, price: 0,    priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Africel 1000',   category: 'CF', stock: 0, minStock: 0, price: 1000, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Africel 500',    category: 'CF', stock: 0, minStock: 0, price: 500,  priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Africel 200',    category: 'CF', stock: 0, minStock: 0, price: 200,  priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Unitel 1000',    category: 'CF', stock: 0, minStock: 0, price: 1000, priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Unitel 500',     category: 'CF', stock: 0, minStock: 0, price: 500,  priceWholesale: 0, wholesaleQty: 5, priceVip: 0 },
+          { id: uid(), name: 'Unitel 200',     category: 'CF', stock: 0, minStock: 0, price: 200,  priceWholesale: 0, wholesaleQty: 5, priceVip: 0 }
+        ],
+        history: [],
+        cashMovements: [],
+        clients: [],
+        expenses: []
+      }
+    },
     users: [
-  { id: uid(), fullName: 'Administrador Geral', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt: now() },
-  { id: uid(), fullName: 'Operador de Balcão', username: 'operador', password: '1234', role: 'operador', active: true, createdAt: now() }
-],
-  currentUserId: null,
-  auditLog: [],
-  clients: [],
-  expenses: []
-};
+      { id: uid(), fullName: 'Administrador Geral', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt: now() },
+      { id: uid(), fullName: 'Operador de Balcão', username: 'operador', password: '1234', role: 'operador', active: true, createdAt: now() }
+    ],
+    currentUserId: null,
+    auditLog: []
+  };
 }
 
 function normalize(raw) {
   const base = defaults();
-  let products = Array.isArray(raw?.products) && raw.products.length ? raw.products : base.products;
 
-  // Patch 17: garantir que todos os produtos têm os campos de multi-preço
+  // ---- Caso 1: já é estrutura multi-loja ----
+  if (raw?.storesData && Array.isArray(raw?.stores) && raw.stores.length > 0) {
+    const stores = raw.stores;
+    const storesData = {};
+    const defaultProducts = base.storesData[base.currentStoreId].products;
+
+    stores.forEach(store => {
+      const d = raw.storesData[store.id] || {};
+      let products = Array.isArray(d.products) && d.products.length ? d.products : defaultProducts;
+      products = products.map(p => ({
+        ...p,
+        priceWholesale: Number(p.priceWholesale ?? 0),
+        wholesaleQty: Number(p.wholesaleQty ?? 5),
+        priceVip: Number(p.priceVip ?? 0)
+      }));
+      storesData[store.id] = {
+        products,
+        history: Array.isArray(d.history) ? d.history : [],
+        cashMovements: Array.isArray(d.cashMovements) ? d.cashMovements : [],
+        clients: Array.isArray(d.clients) ? d.clients : [],
+        expenses: Array.isArray(d.expenses) ? d.expenses : []
+      };
+    });
+
+    const currentStoreId = (raw.currentStoreId && stores.some(s => s.id === raw.currentStoreId))
+      ? raw.currentStoreId
+      : stores[0].id;
+
+    return {
+      stores,
+      currentStoreId,
+      storesData,
+      users: Array.isArray(raw.users) && raw.users.length ? raw.users : base.users,
+      currentUserId: raw.currentUserId || null,
+      auditLog: Array.isArray(raw.auditLog) ? raw.auditLog : []
+    };
+  }
+
+  // ---- Caso 2: estrutura antiga (flat) → migrar para Loja Principal ----
+  const storeId = 'store-main-' + uid();
+  const storeName = 'Loja Principal';
+
+  let products = Array.isArray(raw?.products) && raw.products.length
+    ? raw.products
+    : base.storesData[base.currentStoreId].products;
+
   products = products.map(p => ({
     ...p,
     priceWholesale: Number(p.priceWholesale ?? 0),
@@ -112,15 +167,23 @@ function normalize(raw) {
   }));
 
   return {
-    products,
-    history: Array.isArray(raw?.history) ? raw.history : [],
-    cashMovements: Array.isArray(raw?.cashMovements) ? raw.cashMovements : [],
+    stores: [
+      { id: storeId, name: storeName, createdAt: now() }
+    ],
+    currentStoreId: storeId,
+    storesData: {
+      [storeId]: {
+        products,
+        history: Array.isArray(raw?.history) ? raw.history : [],
+        cashMovements: Array.isArray(raw?.cashMovements) ? raw.cashMovements : [],
+        clients: Array.isArray(raw?.clients) ? raw.clients : [],
+        expenses: Array.isArray(raw?.expenses) ? raw.expenses : []
+      }
+    },
     users: Array.isArray(raw?.users) && raw.users.length ? raw.users : base.users,
     currentUserId: raw?.currentUserId || null,
-      auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : [],
-  clients: Array.isArray(raw?.clients) ? raw.clients : [],
-  expenses: Array.isArray(raw?.expenses) ? raw.expenses : []
-};
+    auditLog: Array.isArray(raw?.auditLog) ? raw.auditLog : []
+  };
 }
 
 function loadLocal() {
@@ -166,7 +229,25 @@ function loadSettings() {
   return { cloudEnabled: false, firebaseConfig: '', adminEmails: '' };
 }
 
+function applyStoreAliases(s) {
+  const KEYS = ['products', 'history', 'cashMovements', 'clients', 'expenses'];
+  KEYS.forEach(key => {
+    Object.defineProperty(s, key, {
+      get() {
+        const store = this.storesData?.[this.currentStoreId];
+        return store ? store[key] : [];
+      },
+      set(value) {
+        const store = this.storesData?.[this.currentStoreId];
+        if (store) store[key] = value;
+      },
+      configurable: true
+    });
+  });
+}
+
 let state = loadLocal();
+applyStoreAliases(state);
 let settings = loadSettings();
 
 const session = {
@@ -190,6 +271,90 @@ const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Operador';
 const byId = (id) => state.products.find((p) => p.id === id);
 const getCurrentUser = () => cloudMode() ? session.currentUser : (state.users.find((u) => u.id === state.currentUserId) || null);
 const isAdmin = () => getCurrentUser()?.role === 'admin';
+
+// =====================================================================
+// MULTI-LOJA — Helpers (Patch 23)
+// =====================================================================
+
+function getStores() {
+  return Array.isArray(state.stores) ? state.stores : [];
+}
+
+function getCurrentStore() {
+  const list = getStores();
+  return list.find(s => s.id === state.currentStoreId) || list[0] || null;
+}
+
+function getCurrentStoreName() {
+  return getCurrentStore()?.name || 'Loja';
+}
+
+function getCurrentStoreData() {
+  return state.storesData?.[state.currentStoreId] || null;
+}
+
+function switchStore(storeId) {
+  if (!state.storesData?.[storeId]) return false;
+  state.currentStoreId = storeId;
+  saveLocal();
+  return true;
+}
+
+function createStore(name) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return null;
+
+  const id = 'store-' + uid();
+  const store = { id, name: cleanName, createdAt: now() };
+
+  const base = defaults();
+  const firstStoreId = base.stores[0].id;
+  const defaultProducts = JSON.parse(JSON.stringify(base.storesData[firstStoreId].products));
+
+  state.stores.push(store);
+  state.storesData[id] = {
+    products: defaultProducts,
+    history: [],
+    cashMovements: [],
+    clients: [],
+    expenses: []
+  };
+  saveLocal();
+  return store;
+}
+
+function renameStore(storeId, newName) {
+  const store = getStores().find(s => s.id === storeId);
+  if (!store) return false;
+  const clean = String(newName || '').trim();
+  if (!clean) return false;
+  store.name = clean;
+  saveLocal();
+  return true;
+}
+
+function deleteStore(storeId) {
+  if (getStores().length <= 1) return false;
+  const idx = state.stores.findIndex(s => s.id === storeId);
+  if (idx < 0) return false;
+
+  state.stores.splice(idx, 1);
+  delete state.storesData[storeId];
+
+  if (state.currentStoreId === storeId) {
+    state.currentStoreId = state.stores[0].id;
+  }
+  saveLocal();
+  return true;
+}
+
+function userHasStoreAccess(user, storeId) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const list = Array.isArray(user.storeIds) ? user.storeIds : [];
+  if (list.length === 0) return true;
+  return list.includes(storeId);
+}
 
 // =====================================================================
 // Permissões
@@ -429,7 +594,13 @@ openStockEntryBtn: document.getElementById('openStockEntryBtn'),
   userCommission: document.getElementById('userCommission'),
 commissionRange: document.getElementById('commissionRange'),
 commissionSummary: document.getElementById('commissionSummary'),
-commissionList: document.getElementById('commissionList')
+commissionList: document.getElementById('commissionList'),
+  storeSelector: document.getElementById('storeSelector'),
+storeManageModal: document.getElementById('storeManageModal'),
+storeManageList: document.getElementById('storeManageList'),
+newStoreName: document.getElementById('newStoreName'),
+createStoreBtn: document.getElementById('createStoreBtn'),
+openStoreManageBtn: document.getElementById('openStoreManageBtn')
 };
 
 function toast(message, duration = 8000) {
@@ -1667,6 +1838,7 @@ function renderAuditLog() {
 
 function renderAll() {
   try { renderUserHeader(); } catch (e) { _origConsoleError('[renderUserHeader]', e); }
+  try { renderStoreSelector(); } catch (e) { _origConsoleError('[renderStoreSelector]', e); }
   try { applyPermissions(); } catch (e) { _origConsoleError('[applyPermissions]', e); }
   try { renderSelectOptions(); } catch (e) { _origConsoleError('[renderSelectOptions]', e); }
   try { renderStats(); } catch (e) { _origConsoleError('[renderStats]', e); }
@@ -1756,10 +1928,21 @@ async function saveState() {
   if (!cloudMode() || !session.fbReady || !session.db || !session.api) return;
   try {
     const { doc, setDoc } = session.api;
+
+    // Snapshot dos aliases da loja ativa para garantir que o storesData fica coerente
+    const currentData = state.storesData?.[state.currentStoreId];
+    if (currentData) {
+      currentData.products = state.products;
+      currentData.history = state.history;
+      currentData.cashMovements = state.cashMovements;
+      currentData.clients = state.clients;
+      currentData.expenses = state.expenses;
+    }
+
     await setDoc(doc(session.db, 'appData', 'main'), {
-      products: state.products,
-      history: state.history,
-      cashMovements: state.cashMovements
+      stores: state.stores,
+      currentStoreId: state.currentStoreId,
+      storesData: state.storesData
     });
   } catch (error) {
     _origConsoleError('[saveState]', error);
@@ -1805,13 +1988,15 @@ async function loadCloudState() {
   const { doc, getDoc, setDoc } = session.api;
   const appRef = doc(session.db, 'appData', 'main');
   const snap = await getDoc(appRef);
+
   if (snap.exists()) {
     state = normalize({ ...state, ...snap.data(), currentUserId: state.currentUserId });
+    applyStoreAliases(state);
   } else {
     await setDoc(appRef, {
-      products: state.products,
-      history: state.history,
-      cashMovements: state.cashMovements
+      stores: state.stores,
+      currentStoreId: state.currentStoreId,
+      storesData: state.storesData
     });
   }
   saveLocal();
@@ -3176,6 +3361,7 @@ function resetUserForm() {
   if (els.userPassword) els.userPassword.required = true;
   if (els.userSubmitBtn) els.userSubmitBtn.textContent = cloudMode() ? 'Criar usuário online' : 'Criar usuário';
   if (els.userCommission) els.userCommission.value = '0';
+  renderUserStoresCheckboxes([]);
   els.cancelUserEditBtn?.classList.add('hidden');
 }
 
@@ -3189,6 +3375,7 @@ function fillUserForm(id) {
   els.userUsername.value = cloudMode() ? user.email : user.username;
   els.userRole.value = user.role;
   if (els.userCommission) els.userCommission.value = user.commission ?? 0;
+  renderUserStoresCheckboxes(Array.isArray(user.storeIds) ? user.storeIds : []);
   els.userPassword.required = false;
   els.userPassword.value = '';
   els.userSubmitBtn.textContent = 'Atualizar usuário';
@@ -3205,6 +3392,7 @@ els.userForm?.addEventListener('submit', async (e) => {
   const emailOrUsername = els.userUsername.value.trim();
   const role = els.userRole.value;
   const commission = Number(els.userCommission?.value || 0);
+  const storeIds = getSelectedUserStores();
   const password = els.userPassword.value.trim();
 
   if (!fullName || !emailOrUsername) return toast('Preencha o nome e o email/usuário.');
@@ -3221,6 +3409,7 @@ els.userForm?.addEventListener('submit', async (e) => {
     user.fullName = fullName;
     user.role = role;
     user.commission = commission;
+    user.storeIds = storeIds;
 
     if (cloudMode()) {
       user.email = emailOrUsername;
@@ -3256,7 +3445,7 @@ els.userForm?.addEventListener('submit', async (e) => {
       const uid2 = userCredential.user.uid;
       const { doc, setDoc } = session.api;
       await setDoc(doc(session.db, 'users', uid2), {
-        fullName, email: emailOrUsername, role, commission, active: true, createdAt: now()
+        fullName, email: emailOrUsername, role, commission, storeIds, active: true, createdAt: now()
       });
       await fetchCloudUsers();
 
@@ -3284,7 +3473,7 @@ els.userForm?.addEventListener('submit', async (e) => {
     state.users.push({
       id: uid(), fullName, username,
       password: await hashPassword(password),
-      role, commission, active: true, createdAt: now()
+      role, commission, storeIds, active: true, createdAt: now()
     });
     saveLocal();
 
@@ -4453,6 +4642,84 @@ document.addEventListener('keydown', (e) => {
 });
 
 // =====================================================================
+// LOJAS — Render do seletor e da lista (Patch 23)
+// =====================================================================
+
+function renderStoreSelector() {
+  if (!els.storeSelector) return;
+  const list = getStores();
+
+  els.storeSelector.innerHTML = list.map(s =>
+    `<option value="${esc(s.id)}">${esc(s.name)}</option>`
+  ).join('');
+
+  if (state.currentStoreId) {
+    els.storeSelector.value = state.currentStoreId;
+  }
+}
+
+function renderStoreManageList() {
+  if (!els.storeManageList) return;
+  const list = getStores();
+
+  if (list.length === 0) {
+    els.storeManageList.innerHTML = '<div class="item empty-state">Nenhuma loja criada.</div>';
+    return;
+  }
+
+  els.storeManageList.innerHTML = list.map(s => {
+    const isCurrent = s.id === state.currentStoreId;
+    const canDelete = list.length > 1;
+
+    return `
+      <div class="item">
+        <div class="product-name-row">
+          <strong>${isCurrent ? '✅ ' : ''}${esc(s.name)}</strong>
+          ${isCurrent ? '<span class="badge info">Ativa</span>' : ''}
+        </div>
+        <div class="card-actions" style="margin-top:6px;">
+          <button type="button" class="secondary-btn" data-store-action="switch" data-id="${esc(s.id)}">Mudar</button>
+          <button type="button" class="ghost" data-store-action="rename" data-id="${esc(s.id)}">✏️ Renomear</button>
+          <button type="button" class="danger-btn" data-store-action="delete" data-id="${esc(s.id)}" ${canDelete ? '' : 'disabled style="opacity:0.5;"'}>🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+function renderUserStoresCheckboxes(selectedIds = []) {
+  if (!els.userStoresWrap || !els.userStoresList) return;
+
+  const stores = getStores();
+
+  // Se só há 1 loja, esconde a zona
+  if (stores.length <= 1) {
+    els.userStoresWrap.style.display = 'none';
+    els.userStoresList.innerHTML = '';
+    return;
+  }
+
+  els.userStoresWrap.style.display = '';
+
+  const selected = Array.isArray(selectedIds) ? selectedIds : [];
+
+  els.userStoresList.innerHTML = stores.map(s => {
+    const checked = selected.includes(s.id) ? 'checked' : '';
+    return `
+      <label class="store-checkbox">
+        <input type="checkbox" value="${esc(s.id)}" ${checked} />
+        <span>${esc(s.name)}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+function getSelectedUserStores() {
+  if (!els.userStoresList) return [];
+  return Array.from(els.userStoresList.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+}
+
+// =====================================================================
 // SHEET — Registar entrada de stock
 // =====================================================================
 
@@ -4599,6 +4866,116 @@ function renderCommissions() {
     </div>
   `).join('');
 }
+
+// =====================================================================
+// LOJAS — Handlers (Patch 23)
+// =====================================================================
+
+function openStoreManageModal() {
+  if (!els.storeManageModal) return;
+  renderStoreManageList();
+  if (els.newStoreName) els.newStoreName.value = '';
+  els.storeManageModal.classList.remove('hidden');
+}
+
+function closeStoreManageModal() {
+  els.storeManageModal?.classList.add('hidden');
+}
+
+els.openStoreManageBtn?.addEventListener('click', () => {
+  closeDrawer();
+  openStoreManageModal();
+});
+
+els.storeManageModal?.addEventListener('click', (e) => {
+  if (e.target.closest('.close-modal') || e.target === els.storeManageModal) {
+    closeStoreManageModal();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && els.storeManageModal && !els.storeManageModal.classList.contains('hidden')) {
+    closeStoreManageModal();
+  }
+});
+
+// Criar loja
+els.createStoreBtn?.addEventListener('click', async () => {
+  const name = els.newStoreName?.value.trim();
+  if (!name) return toast('Informe o nome da loja.');
+
+  const store = createStore(name);
+  if (!store) return toast('Erro ao criar loja.');
+
+  await logAudit('store-create', { storeId: store.id, name: store.name });
+  els.newStoreName.value = '';
+
+  renderStoreSelector();
+  renderStoreManageList();
+  renderAll();
+  toast(`Loja "${store.name}" criada.`);
+});
+
+// Mudar loja via seletor da topbar
+els.storeSelector?.addEventListener('change', async (e) => {
+  const id = e.target.value;
+  if (!switchStore(id)) return;
+
+  renderAll();
+  await logAudit('store-switch', { storeId: id, name: getCurrentStoreName() });
+  toast(`Loja ativa: ${getCurrentStoreName()}`);
+});
+
+// Ações na lista do modal
+els.storeManageList?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-store-action]');
+  if (!btn) return;
+
+  const action = btn.dataset.storeAction;
+  const id = btn.dataset.id;
+  const store = getStores().find(s => s.id === id);
+  if (!store) return;
+
+  if (action === 'switch') {
+    if (!switchStore(id)) return;
+    renderAll();
+    renderStoreManageList();
+    closeStoreManageModal();
+    await logAudit('store-switch', { storeId: id, name: store.name });
+    toast(`Loja ativa: ${store.name}`);
+    return;
+  }
+
+  if (action === 'rename') {
+    const novo = prompt('Novo nome da loja:', store.name);
+    if (!novo) return;
+    if (!renameStore(id, novo)) return;
+    await logAudit('store-rename', { storeId: id, oldName: store.name, newName: novo.trim() });
+    renderStoreSelector();
+    renderStoreManageList();
+    renderAll();
+    toast('Loja renomeada.');
+    return;
+  }
+
+  if (action === 'delete') {
+    const ok = await appConfirm(
+      `Apagar a loja "${store.name}" e todos os seus dados (produtos, vendas, clientes, despesas)?`,
+      'Apagar loja',
+      '🗑️'
+    );
+    if (!ok) return;
+    if (!deleteStore(id)) {
+      toast('Não é possível apagar a última loja.');
+      return;
+    }
+    await logAudit('store-delete', { storeId: id, name: store.name });
+    renderStoreSelector();
+    renderStoreManageList();
+    renderAll();
+    toast('Loja apagada.');
+  }
+});
 
 // =====================================================================
 // PWA install
