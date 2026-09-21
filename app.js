@@ -200,13 +200,13 @@ const PERMISSIONS = {
     admin: true, dashboard: true, verFinanceiro: true, verSaldoCaixa: true,
     produtos: true, stock: true, venda: true, vendaDesconto: true, caixa: true,
     historico: true, historicoTodos: true, relatorio: true, usuarios: true,
-    clientes: true, despesas: true, exportar: true, backup: true, nuvem: true, auditoria: true
+    clientes: true, despesas: true, exportar: true, backup: true, nuvem: true, auditoria: true, comissoes: true
   },
   operador: {
     admin: false, dashboard: true, verFinanceiro: false, verSaldoCaixa: false,
     produtos: false, stock: false, venda: true, vendaDesconto: false, caixa: false,
     historico: true, historicoTodos: false, relatorio: false, usuarios: false,
-    clientes: false, despesas: false, exportar: false, backup: false, nuvem: false, auditoria: false
+    clientes: false, despesas: false, exportar: false, backup: false, nuvem: false, auditoria: false, comissoes: false
   }
 };
 
