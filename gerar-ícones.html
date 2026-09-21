@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gerar ícones PNG — Saldar Serviços</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f7fb;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+      color: #0f172a;
+    }
+    h1 { color: #0f766e; }
+    button {
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 8px 8px 8px 0;
+    }
+    button:active { transform: scale(0.97); }
+    .preview {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .preview div {
+      text-align: center;
+    }
+    .preview canvas {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      display: block;
+    }
+    .status {
+      padding: 12px;
+      background: #fff;
+      border-radius: 8px;
+      margin-top: 16px;
+      border-left: 4px solid #0f766e;
+    }
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎨 Gerar ícones PNG</h1>
+  <p>Este ficheiro lê o <code>icons/icon.svg</code> e gera <code>icon-192.png</code> e <code>icon-512.png</code>.</p>
+
+  <div class="preview">
+    <div>
+      <canvas id="preview192" width="96" height="96"></canvas>
+      <p><strong>192×192</strong></p>
+    </div>
+    <div>
+      <canvas id="preview512" width="128" height="128"></canvas>
+      <p><strong>512×512</strong></p>
+    </div>
+  </div>
+
+  <button id="btnGenerate" disabled>A gerar...</button>
+
+  <div class="status" id="status">A carregar SVG...</div>
+
+  <script>
+    const SVG_PATH = 'icons/icon.svg';
+    const statusEl = document.getElementById('status');
+    const btn = document.getElementById('btnGenerate');
+
+    let svgText = '';
+
+    function setStatus(msg, ok = true) {
+      statusEl.textContent = msg;
+      statusEl.style.borderLeftColor = ok ? '#0f766e' : '#dc2626';
+    }
+
+    async function loadSvg() {
+      try {
+        const resp = await fetch(SVG_PATH);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        svgText = await resp.text();
+        setStatus('✅ SVG carregado. Pronto a gerar.');
+        btn.disabled = false;
+        btn.textContent = '📥 Gerar e descarregar PNGs';
+        // Preview
+        drawToCanvas('preview192', 192);
+        drawToCanvas('preview512', 512);
+      } catch (e) {
+        setStatus('❌ Erro ao carregar SVG: ' + e.message, false);
+      }
+    }
+
+    function svgToDataUrl() {
+      // Converte o texto do SVG para data URL (com encoding UTF-8)
+      const encoded = encodeURIComponent(svgText)
+        .replace(/'/g, '%27')
+        .replace(/"/g, '%22');
+      return 'data:image/svg+xml;charset=utf-8,' + encoded;
+    }
+
+    function drawToCanvas(canvasId, size) {
+      return new Promise((resolve, reject) => {
+        const canvas = document.getElementById(canvasId);
+        // O canvas de preview é mais pequeno; usa-o apenas para visualização
+        const realCanvas = document.createElement('canvas');
+        realCanvas.width = size;
+        realCanvas.height = size;
+
+        const ctx = realCanvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, size, size);
+          ctx.drawImage(img, 0, 0, size, size);
+          // Preview: copia para o canvas visível
+          const previewCtx = canvas.getContext('2d');
+          previewCtx.clearRect(0, 0, canvas.width, canvas.height);
+          previewCtx.drawImage(realCanvas, 0, 0, canvas.width, canvas.height);
+          resolve(realCanvas);
+        };
+        img.onerror = () => reject(new Error('Falha ao renderizar SVG'));
+        img.src = svgToDataUrl();
+      });
+    }
+
+    async function downloadPng(size, filename) {
+      const canvas = await drawToCanvas('tmp' + size, size);
+      // Redimensiona o preview visível com o tamanho correto
+      const realCanvas = document.createElement('canvas');
+      realCanvas.width = size;
+      realCanvas.height = size;
+      const ctx = realCanvas.getContext('2d');
+
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = svgToDataUrl();
+      });
+
+      ctx.drawImage(img, 0, 0, size, size);
+
+      return new Promise((resolve) => {
+        realCanvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          resolve();
+        }, 'image/png');
+      });
+    }
+
+    btn.addEventListener('click', async () => {
+      try {
+        btn.disabled = true;
+        btn.textContent = 'A gerar...';
+        setStatus('A gerar icon-192.png...');
+        await downloadPng(192, 'icon-192.png');
+        await new Promise(r => setTimeout(r, 400));
+        setStatus('A gerar icon-512.png...');
+        await downloadPng(512, 'icon-512.png');
+        setStatus('✅ Pronto! Verifica a pasta de Downloads do dispositivo.');
+        btn.textContent = '✅ Concluído';
+      } catch (e) {
+        setStatus('❌ Erro: ' + e.message, false);
+        btn.disabled = false;
+        btn.textContent = '🔄 Tentar novamente';
+      }
+    });
+
+    loadSvg();
+  </script>
+</body>
+</html>
