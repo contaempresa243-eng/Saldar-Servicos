@@ -600,7 +600,9 @@ storeManageModal: document.getElementById('storeManageModal'),
 storeManageList: document.getElementById('storeManageList'),
 newStoreName: document.getElementById('newStoreName'),
 createStoreBtn: document.getElementById('createStoreBtn'),
-openStoreManageBtn: document.getElementById('openStoreManageBtn')
+openStoreManageBtn: document.getElementById('openStoreManageBtn'),
+  userStoresWrap: document.getElementById('userStoresWrap'),
+userStoresList: document.getElementById('userStoresList')
 };
 
 function toast(message, duration = 8000) {
