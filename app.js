@@ -4520,7 +4520,7 @@ function getSalesInCommissionRange(range) {
  */
 function calcularComissoes(range) {
   const sales = getSalesInCommissionRange(range);
-  const users = (state.users || []);
+  const users = cloudMode() ? (session.cloudUsers || []) : (state.users || []);
   const map = {};
 
   sales.forEach(sale => {
