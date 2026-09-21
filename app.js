@@ -1841,6 +1841,7 @@ function renderAuditLog() {
 function renderAll() {
   try { renderUserHeader(); } catch (e) { _origConsoleError('[renderUserHeader]', e); }
   try { renderStoreSelector(); } catch (e) { _origConsoleError('[renderStoreSelector]', e); }
+  try { if (!els.userEditId?.value) renderUserStoresCheckboxes([]); } catch (e) { _origConsoleError('[renderUserStoresCheckboxes]', e); }
   try { applyPermissions(); } catch (e) { _origConsoleError('[applyPermissions]', e); }
   try { renderSelectOptions(); } catch (e) { _origConsoleError('[renderSelectOptions]', e); }
   try { renderStats(); } catch (e) { _origConsoleError('[renderStats]', e); }
