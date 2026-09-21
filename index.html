@@ -171,6 +171,7 @@
       <button class="tab" data-tab="clientes" data-group="gestao" data-role="admin">Clientes</button>
       <button class="tab" data-tab="despesas" data-group="gestao" data-role="admin">Despesas</button>
       <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
+      <button class="tab" data-tab="comissoes" data-group="gestao" data-role="admin">💰 Comissões</button>
       <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
 
       <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
@@ -650,6 +651,7 @@
                 <span class="password-toggle" onclick="togglePassword('userPassword', this)">👁️</span>
               </div>
             </label>
+            <label>Comissão (% sobre vendas)<input type="number" id="userCommission" min="0" max="100" step="0.01" value="0" placeholder="Ex.: 5" /></label>
             <div class="button-row full-span">
               <button class="primary" type="submit" id="userSubmitBtn">Criar usuário</button>
               <button class="ghost hidden" type="button" id="cancelUserEditBtn">Cancelar edição</button>
@@ -767,7 +769,37 @@
           <div id="auditLogList" class="list"></div>
         </div>
       </section>
+      
+<!-- ===================================================== -->
+<!-- COMISSÕES                                              -->
+<!-- ===================================================== -->
+<section class="tab-panel" id="comissoes">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>💰 Comissões por operador</h3>
+        <p class="mini-text">Cálculo automático das comissões com base nas vendas do período.</p>
+      </div>
+      <select id="commissionRange" class="range-select">
+        <option value="today">Hoje</option>
+        <option value="7d">Últimos 7 dias</option>
+        <option value="30d">Últimos 30 dias</option>
+        <option value="month" selected>Este mês</option>
+      </select>
+    </div>
+    <div id="commissionSummary" class="list"></div>
+  </div>
 
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Detalhes por operador</h3>
+        <p class="mini-text">Resumo de vendas e comissão a pagar a cada operador.</p>
+      </div>
+    </div>
+    <div id="commissionList" class="list"></div>
+  </div>
+</section>
       <!-- ===================================================== -->
       <!-- NUVEM                                                  -->
       <!-- ===================================================== -->

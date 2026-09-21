@@ -425,7 +425,11 @@ panelActivityCount: document.getElementById('panelActivityCount'),
 panelFinanceiroTotal: document.getElementById('panelFinanceiroTotal'),
   stockEntryModal: document.getElementById('stockEntryModal'),
 stockEntryClose: document.getElementById('stockEntryClose'),
-openStockEntryBtn: document.getElementById('openStockEntryBtn')
+openStockEntryBtn: document.getElementById('openStockEntryBtn'),
+  userCommission: document.getElementById('userCommission'),
+commissionRange: document.getElementById('commissionRange'),
+commissionSummary: document.getElementById('commissionSummary'),
+commissionList: document.getElementById('commissionList')
 };
 
 function toast(message, duration = 8000) {
@@ -1681,6 +1685,7 @@ function renderAll() {
 try { renderCharts(); } catch (e) { _origConsoleError('[renderCharts]', e); }
   try { renderExpenseSummary(); } catch (e) { _origConsoleError('[renderExpenseSummary]', e); }
 try { renderExpenses(); } catch (e) { _origConsoleError('[renderExpenses]', e); }
+  try { renderCommissions(); } catch (e) { _origConsoleError('[renderCommissions]', e); }
 }
 // =====================================================================
 // Forms
@@ -3170,6 +3175,7 @@ function resetUserForm() {
   if (els.userEditId) els.userEditId.value = '';
   if (els.userPassword) els.userPassword.required = true;
   if (els.userSubmitBtn) els.userSubmitBtn.textContent = cloudMode() ? 'Criar usuário online' : 'Criar usuário';
+  if (els.userCommission) els.userCommission.value = '0';
   els.cancelUserEditBtn?.classList.add('hidden');
 }
 
@@ -3182,6 +3188,7 @@ function fillUserForm(id) {
   els.userFullName.value = user.fullName;
   els.userUsername.value = cloudMode() ? user.email : user.username;
   els.userRole.value = user.role;
+  if (els.userCommission) els.userCommission.value = user.commission ?? 0;
   els.userPassword.required = false;
   els.userPassword.value = '';
   els.userSubmitBtn.textContent = 'Atualizar usuário';
@@ -3197,6 +3204,7 @@ els.userForm?.addEventListener('submit', async (e) => {
   const fullName = els.userFullName.value.trim();
   const emailOrUsername = els.userUsername.value.trim();
   const role = els.userRole.value;
+  const commission = Number(els.userCommission?.value || 0);
   const password = els.userPassword.value.trim();
 
   if (!fullName || !emailOrUsername) return toast('Preencha o nome e o email/usuário.');
@@ -3212,6 +3220,7 @@ els.userForm?.addEventListener('submit', async (e) => {
 
     user.fullName = fullName;
     user.role = role;
+    user.commission = commission;
 
     if (cloudMode()) {
       user.email = emailOrUsername;
@@ -3247,7 +3256,7 @@ els.userForm?.addEventListener('submit', async (e) => {
       const uid2 = userCredential.user.uid;
       const { doc, setDoc } = session.api;
       await setDoc(doc(session.db, 'users', uid2), {
-        fullName, email: emailOrUsername, role, active: true, createdAt: now()
+        fullName, email: emailOrUsername, role, commission, active: true, createdAt: now()
       });
       await fetchCloudUsers();
 
@@ -3275,7 +3284,7 @@ els.userForm?.addEventListener('submit', async (e) => {
     state.users.push({
       id: uid(), fullName, username,
       password: await hashPassword(password),
-      role, active: true, createdAt: now()
+      role, commission, active: true, createdAt: now()
     });
     saveLocal();
 
@@ -3866,6 +3875,7 @@ els.reportRange?.addEventListener('change', () => {
   els.pdfPanel?.classList.add('hidden');
 });
 els.auditLogFilter?.addEventListener('change', renderAuditLog);
+els.commissionRange?.addEventListener('change', renderCommissions);
 
 document.querySelectorAll('.tab').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -4475,6 +4485,120 @@ document.addEventListener('keydown', (e) => {
     closeStockEntrySheet();
   }
 });
+
+// =====================================================================
+// COMISSÕES — Cálculo e render (Patch 21)
+// =====================================================================
+
+/**
+ * Devolve as vendas filtradas pelo período escolhido.
+ * range: 'today' | '7d' | '30d' | 'month'
+ */
+function getSalesInCommissionRange(range) {
+  const all = (state.history || []).filter(h => h.type === 'venda');
+  const nowD = new Date();
+  const start = new Date(nowD);
+  start.setHours(0, 0, 0, 0);
+
+  if (range === 'today') {
+    const iso = today();
+    return all.filter(h => (h.date || '').slice(0, 10) === iso);
+  }
+  if (range === '7d') start.setDate(start.getDate() - 6);
+  if (range === '30d') start.setDate(start.getDate() - 29);
+  if (range === 'month') {
+    start.setDate(1);
+    start.setMonth(nowD.getMonth());
+  }
+
+  return all.filter(h => new Date(h.date) >= start);
+}
+
+/**
+ * Calcula as comissões por operador.
+ * Devolve { rows, totalSales, totalCommission, salesCount }
+ */
+function calcularComissoes(range) {
+  const sales = getSalesInCommissionRange(range);
+  const users = (state.users || []);
+  const map = {};
+
+  sales.forEach(sale => {
+    const opId = sale.createdById || 'sem-operador';
+    const opName = sale.createdByName || 'Sem operador';
+
+    if (!map[opId]) {
+      // Procurar a comissão do operador
+      const user = users.find(u => u.id === opId);
+      const commissionPct = Number(user?.commission || 0);
+      map[opId] = {
+        operatorId: opId,
+        operatorName: opName,
+        commissionPct,
+        salesCount: 0,
+        totalSales: 0,
+        commission: 0
+      };
+    }
+
+    map[opId].salesCount += 1;
+    map[opId].totalSales += Number(sale.total || 0);
+    map[opId].commission += Number(sale.total || 0) * (map[opId].commissionPct / 100);
+  });
+
+  const rows = Object.values(map).sort((a, b) => b.commission - a.commission);
+  const totalSales = rows.reduce((s, r) => s + r.totalSales, 0);
+  const totalCommission = rows.reduce((s, r) => s + r.commission, 0);
+  const salesCount = rows.reduce((s, r) => s + r.salesCount, 0);
+
+  return { rows, totalSales, totalCommission, salesCount };
+}
+
+function renderCommissions() {
+  if (!els.commissionSummary || !els.commissionList) return;
+  if (!can('relatorio')) {
+    els.commissionSummary.innerHTML = '<div class="item empty-state">Sem permissão.</div>';
+    els.commissionList.innerHTML = '';
+    return;
+  }
+
+  const range = els.commissionRange?.value || 'month';
+  const { rows, totalSales, totalCommission, salesCount } = calcularComissoes(range);
+
+  const labelRange = range === 'today' ? 'Hoje'
+    : range === '7d' ? 'Últimos 7 dias'
+    : range === '30d' ? 'Últimos 30 dias'
+    : 'Este mês';
+
+  // ===== Resumo =====
+  els.commissionSummary.innerHTML = `
+    <div class="item"><strong>Período</strong><span>${esc(labelRange)}</span></div>
+    <div class="item"><strong>Total de vendas</strong><span>${salesCount} ${salesCount === 1 ? 'venda' : 'vendas'}</span></div>
+    <div class="item"><strong>Faturamento do período</strong><span>${money(totalSales)}</span></div>
+    <div class="item" style="font-weight:700; border-top:2px solid var(--primary); padding-top:10px;">
+      <strong>Total de comissões</strong><span>${money(totalCommission)}</span>
+    </div>
+  `;
+
+  // ===== Lista por operador =====
+  if (rows.length === 0) {
+    els.commissionList.innerHTML = '<div class="item empty-state">Nenhuma venda no período.</div>';
+    return;
+  }
+
+  els.commissionList.innerHTML = rows.map(r => `
+    <div class="item">
+      <div class="product-name-row">
+        <strong>👤 ${esc(r.operatorName)}</strong>
+        <span class="badge info">${r.commissionPct.toFixed(2)}%</span>
+      </div>
+      <span>${r.salesCount} ${r.salesCount === 1 ? 'venda' : 'vendas'} • ${money(r.totalSales)} em faturamento</span>
+      <div class="meta-row" style="margin-top:6px;">
+        <span class="badge" style="background:var(--primary); color:#fff;">Comissão: ${money(r.commission)}</span>
+      </div>
+    </div>
+  `).join('');
+}
 
 // =====================================================================
 // PWA install
