@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual do Utilizador — Saldar Serviços</title>
+  <style>
+    /* ============ RESET E BASE ============ */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12pt;
+      line-height: 1.55;
+      color: #1a202c;
+      background: #e5e7eb;
+    }
+
+    /* ============ ESTRUTURA DE PÁGINA ============ */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 20mm 18mm;
+      margin: 0 auto 10mm;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      position: relative;
+    }
+
+    /* ============ CAPA ============ */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 297mm;
+      padding: 30mm 20mm;
+      background: linear-gradient(160deg, #0f766e 0%, #14b8a6 100%);
+      color: #fff;
+    }
+
+    .cover-logo {
+      width: 140px;
+      height: 140px;
+      border-radius: 32px;
+      background: rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 68px;
+      font-weight: 900;
+      letter-spacing: -3px;
+      margin-bottom: 32px;
+      border: 3px solid rgba(255,255,255,0.3);
+    }
+
+    .cover h1 {
+      font-size: 42pt;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+
+    .cover .slogan {
+      font-size: 14pt;
+      font-style: italic;
+      opacity: 0.9;
+      margin-bottom: 60px;
+    }
+
+    .cover .subtitle {
+      font-size: 20pt;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .cover .version {
+      font-size: 11pt;
+      opacity: 0.85;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .cover .footer {
+      position: absolute;
+      bottom: 20mm;
+      left: 0;
+      right: 0;
+      font-size: 10pt;
+      opacity: 0.75;
+    }
+
+    /* ============ TIPOGRAFIA ============ */
+    h1 {
+      font-size: 22pt;
+      color: #0f766e;
+      margin-bottom: 6mm;
+      padding-bottom: 3mm;
+      border-bottom: 3px solid #0f766e;
+    }
+
+    h2 {
+      font-size: 16pt;
+      color: #0f766e;
+      margin-top: 8mm;
+      margin-bottom: 4mm;
+      padding-bottom: 2mm;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    h3 {
+      font-size: 13pt;
+      color: #1a202c;
+      margin-top: 6mm;
+      margin-bottom: 3mm;
+    }
+
+    h4 {
+      font-size: 11.5pt;
+      color: #334155;
+      margin-top: 4mm;
+      margin-bottom: 2mm;
+      font-weight: 700;
+    }
+
+    p { margin-bottom: 3mm; }
+    ul, ol { margin: 3mm 0 4mm 8mm; }
+    li { margin-bottom: 1.5mm; }
+
+    strong { color: #0f172a; }
+
+    code {
+      background: #f1f5f9;
+      color: #0f766e;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 10.5pt;
+    }
+
+    /* ============ COMPONENTES ============ */
+    .tip, .warning, .info, .danger {
+      padding: 4mm 5mm;
+      border-radius: 6px;
+      margin: 4mm 0;
+      border-left: 4px solid;
+      page-break-inside: avoid;
+    }
+
+    .tip {
+      background: #ecfdf5;
+      border-color: #10b981;
+    }
+
+    .warning {
+      background: #fffbeb;
+      border-color: #f59e0b;
+    }
+
+    .info {
+      background: #eff6ff;
+      border-color: #3b82f6;
+    }
+
+    .danger {
+      background: #fef2f2;
+      border-color: #dc2626;
+    }
+
+    .tip strong, .warning strong, .info strong, .danger strong {
+      display: block;
+      margin-bottom: 1.5mm;
+      font-size: 11pt;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 4mm 0;
+      font-size: 10.5pt;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      padding: 2.5mm 3mm;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #0f766e;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    /* ============ ÍNDICE ============ */
+    .toc {
+      margin-top: 6mm;
+    }
+
+    .toc-item {
+      display: flex;
+      align-items: baseline;
+      padding: 2mm 0;
+      border-bottom: 1px dotted #cbd5e1;
+      font-size: 11pt;
+    }
+
+    .toc-item .num {
+      color: #0f766e;
+      font-weight: 700;
+      width: 12mm;
+      flex-shrink: 0;
+    }
+
+    .toc-item .title {
+      flex: 1;
+    }
+
+    .toc-item .page-num {
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    /* ============ PASSOS NUMERADOS ============ */
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      margin-left: 0;
+      padding-left: 0;
+    }
+
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding-left: 10mm;
+      margin-bottom: 3mm;
+      min-height: 6mm;
+    }
+
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 7mm;
+      height: 7mm;
+      background: #0f766e;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 10pt;
+    }
+
+    /* ============ SECÇÕES / CAPÍTULOS ============ */
+    .chapter {
+      page-break-before: always;
+    }
+
+    .chapter-number {
+      font-size: 10pt;
+      color: #64748b;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 2mm;
+      font-weight: 600;
+    }
+
+    /* ============ RODAPÉ ============ */
+    .page-footer {
+      position: absolute;
+      bottom: 10mm;
+      left: 18mm;
+      right: 18mm;
+      font-size: 9pt;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 3mm;
+    }
+
+    /* ============ PRINT ============ */
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    @media print {
+      html, body {
+        background: #fff;
+      }
+      .page {
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .page:last-child {
+        page-break-after: auto;
+      }
+      .no-print {
+        display: none;
+      }
+      h1, h2, h3 {
+        page-break-after: avoid;
+      }
+      p, li, table {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* ============ BOTÃO IMPRIMIR ============ */
+    .print-bar {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 100;
+    }
+
+    .print-btn {
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(15,118,110,.4);
+    }
+
+    .print-btn:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+
+<!-- ============= BOTÃO IMPRIMIR ============= -->
+<button class="print-btn no-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+
+<!-- ============================================================ -->
+<!-- CAPA                                                          -->
+<!-- ============================================================ -->
+<div class="page cover">
+  <div class="cover-logo">SS</div>
+  <h1>SALDAR SERVIÇOS</h1>
+  <p class="slogan">Gestão simples, resultados reais.</p>
+
+  <div style="margin-top: 40mm;">
+    <p class="subtitle">Manual do Utilizador</p>
+    <p class="version">Versão 2026 · Edição 1</p>
+  </div>
+
+  <div class="footer">
+    © 2026 Saldar Serviços — Documento de formação interna
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ÍNDICE                                                        -->
+<!-- ============================================================ -->
+<div class="page">
+  <h1>Índice</h1>
+
+  <div class="toc">
+    <div class="toc-item"><span class="num">1.</span><span class="title">Introdução</span><span class="page-num">3</span></div>
+    <div class="toc-item"><span class="num">2.</span><span class="title">Primeiros passos</span><span class="page-num">4</span></div>
+    <div class="toc-item"><span class="num">3.</span><span class="title">Painel principal</span><span class="page-num">5</span></div>
+    <div class="toc-item"><span class="num">4.</span><span class="title">Operações — Venda</span><span class="page-num">6</span></div>
+    <div class="toc-item"><span class="num">5.</span><span class="title">Operações — Stock</span><span class="page-num">8</span></div>
+    <div class="toc-item"><span class="num">6.</span><span class="title">Operações — Caixa</span><span class="page-num">9</span></div>
+    <div class="toc-item"><span class="num">7.</span><span class="title">Operações — Histórico</span><span class="page-num">10</span></div>
+    <div class="toc-item"><span class="num">8.</span><span class="title">Gestão — Produtos</span><span class="page-num">11</span></div>
+    <div class="toc-item"><span class="num">9.</span><span class="title">Gestão — Usuários</span><span class="page-num">12</span></div>
+    <div class="toc-item"><span class="num">10.</span><span class="title">Gestão — Clientes</span><span class="page-num">13</span></div>
+    <div class="toc-item"><span class="num">11.</span><span class="title">Gestão — Despesas</span><span class="page-num">14</span></div>
+    <div class="toc-item"><span class="num">12.</span><span class="title">Gestão — Relatório</span><span class="page-num">15</span></div>
+    <div class="toc-item"><span class="num">13.</span><span class="title">Gestão — Comissões</span><span class="page-num">16</span></div>
+    <div class="toc-item"><span class="num">14.</span><span class="title">Gestão — Auditoria</span><span class="page-num">17</span></div>
+    <div class="toc-item"><span class="num">15.</span><span class="title">Sistema — Backup</span><span class="page-num">18</span></div>
+    <div class="toc-item"><span class="num">16.</span><span class="title">Sistema — Exportar CSV</span><span class="page-num">19</span></div>
+    <div class="toc-item"><span class="num">17.</span><span class="title">Sistema — Nuvem</span><span class="page-num">20</span></div>
+    <div class="toc-item"><span class="num">18.</span><span class="title">Multi-loja</span><span class="page-num">21</span></div>
+    <div class="toc-item"><span class="num">19.</span><span class="title">Segurança e sessão</span><span class="page-num">22</span></div>
+    <div class="toc-item"><span class="num">20.</span><span class="title">Perguntas frequentes</span><span class="page-num">23</span></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 1. INTRODUÇÃO                                                 -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 1</div>
+  <h1>Introdução</h1>
+
+  <h2>O que é o Saldar Serviços</h2>
+  <p>O <strong>Saldar Serviços</strong> é uma aplicação web progressiva (PWA) de gestão para pequenos negócios que trabalham com <strong>recargas eletrónicas (RL)</strong> e <strong>cartões físicos (CF)</strong>. Foi concebida para ser simples, rápida e funcional em telemóveis Android, iPhone e computador.</p>
+
+  <h2>Funcionalidades principais</h2>
+  <ul>
+    <li><strong>Stock</strong> — controlo de entradas e estado atual de produtos</li>
+    <li><strong>Vendas</strong> — carrinho multi-item, recibos em 80mm, envio por WhatsApp</li>
+    <li><strong>Caixa</strong> — registo de entradas e saídas manuais</li>
+    <li><strong>Clientes</strong> — cadastro, histórico de compras, clientes VIP</li>
+    <li><strong>Despesas</strong> — despesas operacionais e cálculo de lucro real</li>
+    <li><strong>Comissões</strong> — cálculo automático por operador</li>
+    <li><strong>Multi-loja</strong> — separação total de dados por loja</li>
+    <li><strong>Relatórios</strong> — por período, exportação PDF personalizada</li>
+    <li><strong>Auditoria</strong> — registo de todas as ações sensíveis</li>
+    <li><strong>Exportação</strong> — CSV para Excel e backup JSON</li>
+  </ul>
+
+  <h2>Dois modos de funcionamento</h2>
+  <table>
+    <tr><th>Modo</th><th>Onde ficam os dados</th><th>Ideal para</th></tr>
+    <tr><td><strong>Local</strong></td><td>No próprio telemóvel (offline)</td><td>Uma loja, um dispositivo</td></tr>
+    <tr><td><strong>Online (Firebase)</strong></td><td>Na nuvem, sincronizado</td><td>Várias lojas, vários utilizadores</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>💡 Dica</strong>
+    Podes começar em modo local e ativar o modo online mais tarde. Os dados existentes são migrados automaticamente.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 2. PRIMEIROS PASSOS                                           -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 2</div>
+  <h1>Primeiros passos</h1>
+
+  <h2>Instalar a aplicação (PWA)</h2>
+  <p>A aplicação pode ser instalada no ecrã inicial do telemóvel como qualquer outra app.</p>
+
+  <ol class="steps">
+    <li>Abre o <strong>Chrome</strong> e vai ao endereço:<br><code>https://contaempresa243-eng.github.io/Saldar-Servicos/</code></li>
+    <li>Faz login com as tuas credenciais</li>
+    <li>Aparece o botão <strong>Instalar</strong> na barra do topo (ao lado de "Local/Firebase")</li>
+    <li>Toca em <strong>Instalar</strong> → confirma</li>
+    <li>O ícone aparece no ecrã inicial como app independente</li>
+  </ol>
+
+  <div class="info">
+    <strong>ℹ️ Alternativa</strong>
+    Se o botão não aparecer, usa o menu ⋮ do Chrome → <strong>"Instalar app"</strong>.
+  </div>
+
+  <h2>Entrar no sistema</h2>
+  <p>Existem dois tipos de acesso:</p>
+
+  <table>
+    <tr><th>Modo</th><th>Credenciais</th></tr>
+    <tr><td><strong>Local</strong></td><td>Usuário: <code>admin</code> · Palavra-passe: <code>admin123</code></td></tr>
+    <tr><td><strong>Online (Firebase)</strong></td><td>Email + palavra-passe pessoal</td></tr>
+  </table>
+
+  <div class="danger">
+    <strong>🔒 Segurança</strong>
+    Altera a palavra-passe do administrador logo no primeiro acesso. A conta admin tem acesso a <em>todas</em> as funcionalidades do sistema.
+  </div>
+
+  <h2>Perfis de utilizador</h2>
+  <table>
+    <tr><th>Perfil</th><th>Permissões</th></tr>
+    <tr><td><strong>Administrador</strong></td><td>Acesso total — produtos, stock, venda, caixa, relatórios, utilizadores, lojas, comissões, backup</td></tr>
+    <tr><td><strong>Operador</strong></td><td>Apenas Painel, Venda e Histórico</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- 3. PAINEL                                                     -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 3</div>
+  <h1>Painel principal</h1>
+
+  <p>O Painel é o centro de informação da aplicação. Mostra um resumo em tempo real da atividade da loja.</p>
+
+  <h2>Cartões de estatística (topo)</h2>
+  <ul>
+    <li><strong>Total em stock</strong> — soma de todas as unidades disponíveis</li>
+    <li><strong>Alertas ativos</strong> — produtos abaixo do stock mínimo (clicável)</li>
+    <li><strong>Vendas hoje</strong> — faturamento do dia</li>
+    <li><strong>Caixa acumulado</strong> — saldo total desde o início</li>
+    <li><strong>Usuários ativos</strong> — utilizadores com conta ativa</li>
+    <li><strong>Mais vendido hoje</strong> — produto com maior faturamento</li>
+  </ul>
+
+  <h2>Mini-cartões clicáveis</h2>
+  <p>Cada mini-cartão abre uma <strong>folha de detalhe</strong> com a informação completa:</p>
+
+  <table>
+    <tr><th>Mini-cartão</th><th>O que abre</th></tr>
+    <tr><td>📦 Produtos</td><td>Lista de todos os produtos cadastrados</td></tr>
+    <tr><td>⚠️ Alertas de stock</td><td>Produtos abaixo do mínimo definido</td></tr>
+    <tr><td>🏆 Mais vendidos</td><td>Ranking de produtos vendidos hoje</td></tr>
+    <tr><td>💳 Pagamentos</td><td>Resumo por método de pagamento</td></tr>
+    <tr><td>🕒 Atividade</td><td>Últimas movimentações (vendas, stock, caixa)</td></tr>
+    <tr><td>💰 Financeiro</td><td>Resumo financeiro completo + gráfico de pizza</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>💡 Como fechar a folha de detalhe</strong>
+    Toca no fundo escuro, no ✕ do topo, ou prime <strong>ESC</strong> (no computador).
+  </div>
+
+  <h2>Gráficos e comparação mensal</h2>
+  <ul>
+    <li><strong>📅 Comparação mensal</strong> — este mês vs. mês anterior</li>
+    <li><strong>📈 Vendas dos últimos 7 dias</strong> — gráfico de linha</li>
+    <li><strong>🏆 Top 5 produtos (30 dias)</strong> — gráfico de barras</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- 4. OPERAÇÕES — VENDA                                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 4</div>
+  <h1>Operações — Venda</h1>
+
+  <h2>Como fazer uma venda</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Operações → Venda</strong></li>
+    <li>Seleciona o <strong>Produto</strong> na lista</li>
+    <li>Define a <strong>Quantidade</strong></li>
+    <li>O <strong>Preço</strong> é calculado automaticamente (Normal / Grosso / VIP)</li>
+    <li>(Opcional) Escolhe o <strong>Método de pagamento</strong>: Dinheiro, Transferência ou Multicaixa</li>
+    <li>(Opcional) Toca em <strong>📋 Escolher</strong> para associar um cliente</li>
+    <li>Toca em <strong>➕ Adicionar ao carrinho</strong></li>
+  </ol>
+
+  <p>Repete os passos para adicionar mais produtos. Quando terminares:</p>
+
+  <ol class="steps">
+    <li>Verifica o carrinho no fundo da página</li>
+    <li>Toca em <strong>✅ Finalizar venda</strong></li>
+    <li>O recibo abre automaticamente</li>
+  </ol>
+
+  <h2>Sistema de multi-preço (automático)</h2>
+  <table>
+    <tr><th>Condição</th><th>Preço aplicado</th></tr>
+    <tr><td>Cliente marcado como VIP</td><td>⭐ Preço VIP</td></tr>
+    <tr><td>Quantidade ≥ quantidade de grosso</td><td>📦 Preço de grosso</td></tr>
+    <tr><td>Nenhuma das anteriores</td><td>Preço normal</td></tr>
+  </table>
+
+  <h2>O recibo</h2>
+  <p>Depois de finalizar, aparece uma janela com o recibo. Tens 3 opções:</p>
+  <ul>
+    <li><strong>🎫 Imprimir 80mm</strong> — formato talão de impressora térmica</li>
+    <li><strong>🖨️ Imprimir A4</strong> — formato folha normal</li>
+    <li><strong>📱 WhatsApp</strong> — envia o recibo como mensagem de texto</li>
+  </ul>
+
+  <div class="warning">
+    <strong>⚠️ Stock insuficiente</strong>
+    Se tentares vender mais do que existe, o sistema bloqueia e avisa. Verifica o stock antes de adicionar ao carrinho.
+  </div>
+
+  <div class="info">
+    <strong>ℹ️ Descontos</strong>
+    Apenas administradores podem vender CF abaixo do preço de tabela. Operadores veem o preço bloqueado.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 5. OPERAÇÕES — STOCK                                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 5</div>
+  <h1>Operações — Stock</h1>
+
+  <h2>Registar entrada de stock</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Operações → Stock</strong></li>
+    <li>Toca no mini-cartão <strong>📥 Entrada de stock</strong></li>
+    <li>Uma folha sobe do fundo da página</li>
+    <li>Preenche:
+      <ul>
+        <li><strong>Produto</strong> — escolhe da lista</li>
+        <li><strong>Valor / Unidades adicionadas</strong> — quantidade a somar</li>
+        <li><strong>Alerta mínimo</strong> — valor abaixo do qual aparece alerta</li>
+        <li><strong>Observação</strong> — texto opcional (ex.: "reposição da manhã")</li>
+      </ul>
+    </li>
+    <li>Toca em <strong>Registrar entrada</strong></li>
+    <li>A folha fecha automaticamente e o stock é atualizado</li>
+  </ol>
+
+  <h2>Ver estado do stock</h2>
+  <p>Logo abaixo do mini-cartão aparece a tabela <strong>Estado do stock</strong> com:</p>
+
+  <table>
+    <tr><th>Coluna</th><th>Descrição</th></tr>
+    <tr><td>Produto</td><td>Nome do produto</td></tr>
+    <tr><td>Categoria</td><td>RL (recarga) ou CF (cartão físico)</td></tr>
+    <tr><td>Stock</td><td>Unidades ou valor atual (RL = saldo em AOA)</td></tr>
+    <tr><td>Mínimo</td><td>Valor de alerta</td></tr>
+    <tr><td>Preço</td><td>Preço de tabela (CF) ou "Variável" (RL)</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>💡 Recargas eletrónicas (RL)</strong>
+    Funcionam como <strong>saldo</strong> em kwanzas, não em unidades. Ex.: "saldo 47 000,00 AOA".
+  </div>
+
+  <div class="warning">
+    <strong>⚠️ Alertas automáticos</strong>
+    Quando o stock fica abaixo do mínimo, aparece no cartão <strong>"Alertas ativos"</strong> do Painel (clicável para ver detalhes).
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 6. OPERAÇÕES — CAIXA                                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 6</div>
+  <h1>Operações — Caixa</h1>
+
+  <h2>Registar movimento manual</h2>
+  <p>Para além das vendas, podes registar <strong>entradas</strong> e <strong>saídas</strong> manuais no caixa.</p>
+
+  <ol class="steps">
+    <li>Vai a <strong>Operações → Caixa</strong></li>
+    <li>Escolhe o <strong>Tipo de movimento</strong>: Entrada ou Saída</li>
+    <li>Insere o <strong>Valor</strong> em AOA</li>
+    <li>Escreve uma <strong>Descrição</strong> (ex.: "troco do cliente", "reforço de caixa")</li>
+    <li>Toca em <strong>Registrar movimento</strong></li>
+  </ol>
+
+  <h2>Resumo do caixa</h2>
+  <p>O painel do caixa mostra sempre:</p>
+  <ul>
+    <li><strong>Total de vendas</strong> — soma de todas as vendas</li>
+    <li><strong>Entradas manuais</strong> — depósitos, reforços, etc.</li>
+    <li><strong>Saídas manuais</strong> — retiradas, trocos, etc.</li>
+    <li><strong>Saldo atual</strong> = vendas + entradas − saídas</li>
+  </ul>
+
+  <div class="tip">
+    <strong>💡 Quando usar movimentos manuais</strong>
+    <ul>
+      <li>Reforçar o caixa no início do dia</li>
+      <li>Registar retiradas para depósito bancário</li>
+      <li>Pequenos ajustes de troco</li>
+      <li>Devoluções pontuais a clientes</li>
+    </ul>
+  </div>
+
+  <div class="info">
+    <strong>ℹ️ Apenas administradores</strong>
+    O módulo Caixa está restrito ao perfil Administrador.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 7. OPERAÇÕES — HISTÓRICO                                      -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 7</div>
+  <h1>Operações — Histórico</h1>
+
+  <p>O Histórico reúne <strong>todas</strong> as movimentações: vendas, entradas de stock e movimentos de caixa.</p>
+
+  <h2>Filtros avançados</h2>
+  <table>
+    <tr><th>Filtro</th><th>Uso</th></tr>
+    <tr><td>Tipo</td><td>Vendas / Stock / Caixa / Todos</td></tr>
+    <tr><td>Data início</td><td>A partir de que dia</td></tr>
+    <tr><td>Data fim</td><td>Até que dia</td></tr>
+    <tr><td>Operador</td><td>Filtrar por quem registou</td></tr>
+    <tr><td>Cliente</td><td>Só vendas associadas a um cliente</td></tr>
+    <tr><td>Método de pagamento</td><td>Dinheiro / Transferência / Multicaixa</td></tr>
+  </table>
+
+  <p>Toca em <strong>🧹 Limpar filtros</strong> para repor tudo.</p>
+
+  <h2>Ler cada entrada</h2>
+  <p>Cada movimentação mostra:</p>
+  <ul>
+    <li><strong>Vendas</strong> — produto, quantidade, valor, método, operador, e botão <strong>🧾 Recibo</strong></li>
+    <li><strong>Entradas de stock</strong> — produto, quantidade, observação</li>
+    <li><strong>Movimentos de caixa</strong> — tipo, valor, descrição</li>
+  </ul>
+
+  <h2>Reimprimir recibo</h2>
+  <p>Em qualquer venda, toca em <strong>🧾 Recibo</strong> para reabrir o talão original com as opções de impressão e WhatsApp.</p>
+
+  <div class="tip">
+    <strong>💡 Operadores veem só o que fizeram</strong>
+    Um operador autenticado apenas vê os registos que ele próprio criou. Administradores veem tudo.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 8. GESTÃO — PRODUTOS                                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 8</div>
+  <h1>Gestão — Produtos</h1>
+
+  <h2>Criar produto</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Gestão → Produtos</strong></li>
+    <li>Preenche o formulário:
+      <ul>
+        <li><strong>Nome</strong> — ex.: "Unitel 1000"</li>
+        <li><strong>Categoria</strong> — RL (recarga) ou CF (cartão físico)</li>
+        <li><strong>Stock inicial</strong></li>
+        <li><strong>Alerta mínimo</strong> — stock abaixo do qual alerta</li>
+        <li><strong>Preço padrão</strong> — apenas para CF</li>
+        <li><strong>Preço de grosso</strong> + quantidade mínima</li>
+        <li><strong>Preço VIP</strong> — para clientes marcados como VIP</li>
+      </ul>
+    </li>
+    <li>Toca em <strong>Salvar produto</strong></li>
+  </ol>
+
+  <h2>Sistema de preços</h2>
+  <table>
+    <tr><th>Campo</th><th>Quando se aplica</th></tr>
+    <tr><td>Preço normal</td><td>Por defeito</td></tr>
+    <tr><td>Preço de grosso</td><td>Quantidade ≥ qtd. mínima</td></tr>
+    <tr><td>Preço VIP</td><td>Cliente com etiqueta VIP (prioridade máxima)</td></tr>
+  </table>
+
+  <h2>Editar / Remover</h2>
+  <ul>
+    <li>Usa a pesquisa para encontrar um produto</li>
+    <li>Toca em <strong>Editar</strong> para alterar os dados</li>
+    <li>Toca em <strong>Remover</strong> para apagar (bloqueado se já houver histórico)</li>
+  </ul>
+
+  <div class="warning">
+    <strong>⚠️ Produtos com histórico não podem ser removidos</strong>
+    Para preservar a integridade dos relatórios, o sistema bloqueia a remoção de produtos que já foram vendidos ou tiveram entradas de stock.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 9. GESTÃO — USUÁRIOS                                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 9</div>
+  <h1>Gestão — Usuários</h1>
+
+  <h2>Criar utilizador</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Gestão → Usuários</strong></li>
+    <li>Preenche:
+      <ul>
+        <li><strong>Nome completo</strong></li>
+        <li><strong>Email</strong> (modo online) ou <strong>nome de utilizador</strong> (local)</li>
+        <li><strong>Perfil</strong> — Administrador ou Operador</li>
+        <li><strong>Palavra-passe</strong> (mínimo 6 caracteres)</li>
+        <li><strong>Comissão (%)</strong> — percentagem sobre as vendas</li>
+        <li><strong>Lojas com acesso</strong> — checkboxes das lojas permitidas</li>
+      </ul>
+    </li>
+    <li>Toca em <strong>Criar usuário</strong></li>
+  </ol>
+
+  <h2>Sistema de comissões</h2>
+  <p>Cada utilizador pode ter a sua <strong>% de comissão</strong> sobre o valor total das vendas que fizer. Ex.:</p>
+
+  <table>
+    <tr><th>Operador</th><th>Comissão</th><th>Vendas de 100 000 AOA</th></tr>
+    <tr><td>Ana</td><td>5%</td><td>5 000 AOA</td></tr>
+    <tr><td>Bruno</td><td>10%</td><td>10 000 AOA</td></tr>
+    <tr><td>Carlos</td><td>15%</td><td>15 000 AOA</td></tr>
+  </table>
+
+  <p>Ver o <strong>Capítulo 13</strong> para o relatório completo de comissões.</p>
+
+  <h2>Ações sobre utilizadores</h2>
+  <ul>
+    <li><strong>Editar</strong> — altera nome, perfil, comissão, lojas</li>
+    <li><strong>Remover</strong> — apaga o utilizador (exceto o próprio)</li>
+    <li><strong>Repor senha</strong> — no modo online envia email; no local pede nova senha</li>
+  </ul>
+
+  <div class="danger">
+    <strong>🔒 Regras importantes</strong>
+    <ul>
+      <li>Não podes remover o teu próprio utilizador</li>
+      <li>Tem de existir sempre pelo menos 1 administrador ativo</li>
+      <li>Administradores veem automaticamente todas as lojas</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 10. GESTÃO — CLIENTES                                         -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 10</div>
+  <h1>Gestão — Clientes</h1>
+
+  <h2>Cadastrar cliente</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Gestão → Clientes</strong></li>
+    <li>Preenche:
+      <ul>
+        <li><strong>Nome completo</strong> (obrigatório)</li>
+        <li><strong>Telefone</strong> (opcional, único)</li>
+        <li><strong>Email</strong> (opcional)</li>
+        <li><strong>NIF</strong> (opcional)</li>
+        <li><strong>Notas</strong> (opcional)</li>
+        <li>☑️ <strong>Cliente VIP</strong> — aplica preço VIP nas vendas</li>
+      </ul>
+    </li>
+    <li>Toca em <strong>Guardar cliente</strong></li>
+  </ol>
+
+  <h2>Ver histórico de um cliente</h2>
+  <p>Toca em qualquer cliente na lista para ver:</p>
+  <ul>
+    <li>Total de compras</li>
+    <li>Total gasto</li>
+    <li>Lista cronológica de todas as compras</li>
+    <li>Botões <strong>✏️ Editar</strong> e <strong>🗑️ Remover</strong></li>
+  </ul>
+
+  <h2>Cliente VIP</h2>
+  <p>Quando um cliente VIP é escolhido numa venda, o sistema aplica automaticamente o <strong>preço VIP</strong> do produto (definido no capítulo 8).</p>
+
+  <h2>Criar cliente rápido durante a venda</h2>
+  <ol class="steps">
+    <li>Na venda, toca em <strong>📋 Escolher</strong></li>
+    <li>Toca em <strong>➕ Novo cliente</strong></li>
+    <li>Preenche apenas Nome, Telefone e NIF</li>
+    <li>Toca em <strong>Guardar e usar</strong></li>
+    <li>O cliente fica associado à venda atual</li>
+  </ol>
+
+  <div class="tip">
+    <strong>💡 Telefone único</strong>
+    O sistema bloqueia duplicados por telefone. Se precisares do mesmo número para dois clientes, deixa o campo vazio num deles.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 11. GESTÃO — DESPESAS                                         -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 11</div>
+  <h1>Gestão — Despesas</h1>
+
+  <h2>Registar despesa</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Gestão → Despesas</strong></li>
+    <li>Preenche:
+      <ul>
+        <li><strong>Data</strong> — por defeito hoje</li>
+        <li><strong>Categoria</strong> — Luz, Água, Renda, Salários, Internet, Combustível, Manutenção, Outra</li>
+        <li><strong>Valor</strong> em AOA</li>
+        <li><strong>Descrição</strong> — ex.: "Fatura de Setembro"</li>
+        <li><strong>Observações</strong> — texto opcional</li>
+      </ul>
+    </li>
+    <li>Toca em <strong>Guardar despesa</strong></li>
+  </ol>
+
+  <h2>Resumo e Lucro Real</h2>
+  <p>O sistema calcula automaticamente o <strong>Lucro Real</strong> do período escolhido:</p>
+
+  <div class="info">
+    <strong>📊 Fórmula</strong>
+    <code>Lucro Real = Faturamento − Total de Despesas</code>
+  </div>
+
+  <p>Escolhe o período no seletor: <strong>Hoje</strong>, <strong>7 dias</strong>, <strong>30 dias</strong> ou <strong>Este mês</strong>.</p>
+
+  <h2>Categorias disponíveis</h2>
+  <table>
+    <tr><th>Emoji</th><th>Categoria</th></tr>
+    <tr><td>💡</td><td>Luz</td></tr>
+    <tr><td>💧</td><td>Água</td></tr>
+    <tr><td>🏠</td><td>Renda</td></tr>
+    <tr><td>👥</td><td>Salários</td></tr>
+    <tr><td>🌐</td><td>Internet</td></tr>
+    <tr><td>⛽</td><td>Combustível</td></tr>
+    <tr><td>🔧</td><td>Manutenção</td></tr>
+    <tr><td>📦</td><td>Outra</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>💡 Despesas detalhadas no PDF</strong>
+    Ao exportar relatório em PDF, podes incluir uma secção só com as despesas do período (Capítulo 12).
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 12. GESTÃO — RELATÓRIO                                        -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 12</div>
+  <h1>Gestão — Relatório</h1>
+
+  <h2>Escolher período</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Gestão → Relatório</strong></li>
+    <li>Toca em <strong>— Escolher período —</strong></li>
+    <li>Seleciona uma das opções:
+      <ul>
+        <li>📅 Hoje</li>
+        <li>📅 Últimos 7 dias</li>
+        <li>📅 Últimos 30 dias</li>
+      </ul>
+    </li>
+    <li>O resumo aparece em baixo em formato de grelha</li>
+  </ol>
+
+  <h2>Exportar PDF</h2>
+  <p>O botão <strong>📄</strong> (canto direito) abre um painel flutuante com as secções opcionais:</p>
+
+  <table>
+    <tr><th>Secção</th><th>Conteúdo</th></tr>
+    <tr><td>📊 Resumo financeiro</td><td>Vendas, despesas e lucro</td></tr>
+    <tr><td>📦 Resumo por produto</td><td>Quantidades e valores por produto</td></tr>
+    <tr><td>👥 Resumo por cliente</td><td>Nº de vendas e total gasto</td></tr>
+    <tr><td>👤 Resumo por operador</td><td>Vendas e valores por operador</td></tr>
+    <tr><td>💸 Despesas detalhadas</td><td>Tabela de todas as despesas</td></tr>
+    <tr><td>📋 Vendas detalhadas</td><td>Tabela com todas as vendas</td></tr>
+  </table>
+
+  <ol class="steps">
+    <li>Marca as secções que queres incluir</li>
+    <li>Toca em <strong>📄 Exportar PDF</strong></li>
+    <li>O ficheiro descarrega com o nome <code>relatorio_DATA_TIMESTAMP.pdf</code></li>
+  </ol>
+
+  <div class="tip">
+    <strong>💡 Rodapé automático</strong>
+    Todas as páginas do PDF têm numeração <em>Página X de Y</em> e o copyright da marca.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 13. GESTÃO — COMISSÕES                                        -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 13</div>
+  <h1>Gestão — Comissões</h1>
+
+  <h2>Ver comissões por operador</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Gestão → 💰 Comissões</strong></li>
+    <li>Escolhe o <strong>período</strong> no seletor:
+      <ul>
+        <li>Hoje</li>
+        <li>Últimos 7 dias</li>
+        <li>Últimos 30 dias</li>
+        <li>Este mês (por defeito)</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>O que aparece</h2>
+  <ul>
+    <li><strong>Card de resumo</strong> — período, total de vendas, faturamento, total de comissões</li>
+    <li><strong>Lista por operador</strong> — cada operador com:
+      <ul>
+        <li>Nome e percentagem aplicada</li>
+        <li>Nº de vendas e faturamento</li>
+        <li>Valor da comissão a pagar</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>Cálculo</h2>
+  <div class="info">
+    <strong>📊 Fórmula</strong>
+    <code>Comissão = Faturamento do operador × (Comissão % ÷ 100)</code>
+  </div>
+
+  <p><strong>Exemplo:</strong></p>
+  <table>
+    <tr><th>Operador</th><th>Vendas</th><th>Faturamento</th><th>%</th><th>Comissão</th></tr>
+    <tr><td>Ana</td><td>15</td><td>250 000 AOA</td><td>5%</td><td>12 500 AOA</td></tr>
+    <tr><td>Bruno</td><td>22</td><td>380 000 AOA</td><td>10%</td><td>38 000 AOA</td></tr>
+    <tr><td><strong>Total</strong></td><td><strong>37</strong></td><td><strong>630 000 AOA</strong></td><td>—</td><td><strong>50 500 AOA</strong></td></tr>
+  </table>
+
+  <h2>Como definir a comissão</h2>
+  <p>Vai a <strong>Gestão → Usuários → Editar</strong> e altera o campo <strong>Comissão (%)</strong>. O cálculo passa a usar o novo valor a partir do próximo carregamento.</p>
+
+  <div class="warning">
+    <strong>⚠️ Utilizadores antigos</strong>
+    Se um utilizador foi criado antes de existir a funcionalidade de comissões, tem <strong>0%</strong> por defeito. Edita-o para definir um valor.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 14. GESTÃO — AUDITORIA                                        -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 14</div>
+  <h1>Gestão — Auditoria</h1>
+
+  <p>A Auditoria registra <strong>todas</strong> as ações sensíveis do sistema, para efeitos de controlo e segurança.</p>
+
+  <h2>Filtrar registos</h2>
+  <p>Usa o seletor para filtrar por tipo de ação:</p>
+
+  <table>
+    <tr><th>Ação</th><th>O que registra</th></tr>
+    <tr><td>Vendas</td><td>Cada venda com produtos, valores e método</td></tr>
+    <tr><td>Stock</td><td>Entradas de stock</td></tr>
+    <tr><td>Caixa</td><td>Movimentos manuais</td></tr>
+    <tr><td>produto-criar / editar / remover</td><td>Alterações no catálogo</td></tr>
+    <tr><td>user-criar / editar / remover / toggle</td><td>Gestão de utilizadores</td></tr>
+    <tr><td>user-reset-pass</td><td>Reposições de senha</td></tr>
+    <tr><td>client-criar / editar / remover</td><td>Gestão de clientes</td></tr>
+    <tr><td>login / logout</td><td>Entradas e saídas de sessão</td></tr>
+    <tr><td>session-timeout</td><td>Sessões expiradas por inatividade</td></tr>
+    <tr><td>store-create / switch / rename / delete</td><td>Gestão de lojas (multi-loja)</td></tr>
+  </table>
+
+  <h2>Cada registo mostra</h2>
+  <ul>
+    <li><strong>Ação</strong> — o tipo</li>
+    <li><strong>Perfil</strong> — admin ou operador</li>
+    <li><strong>Utilizador</strong> — quem fez</li>
+    <li><strong>Data e hora</strong></li>
+    <li><strong>Detalhes</strong> — informação específica da ação</li>
+  </ul>
+
+  <div class="tip">
+    <strong>💡 Vendas multi-item detalhadas</strong>
+    Quando uma venda tem vários produtos, o registo mostra cada item e o total geral.
+  </div>
+
+  <div class="info">
+    <strong>ℹ️ Limite de registos</strong>
+    O sistema guarda os últimos <strong>1000</strong> registos localmente. A exportação CSV inclui todos os registos visíveis.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 15. SISTEMA — BACKUP                                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 15</div>
+  <h1>Sistema — Backup</h1>
+
+  <h2>Exportar backup</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Sistema → Backup</strong></li>
+    <li>Toca em <strong>Exportar backup</strong></li>
+    <li>Descarrega um ficheiro <code>saldar-servicos-backup-DATA.json</code></li>
+  </ol>
+
+  <p><strong>O backup inclui:</strong></p>
+  <ul>
+    <li>Todos os produtos</li>
+    <li>Histórico completo</li>
+    <li>Movimentos de caixa</li>
+    <li>Utilizadores (sem palavras-passe)</li>
+    <li>Clientes e despesas</li>
+    <li>Registos de auditoria</li>
+    <li>Lojas e dados multi-loja</li>
+  </ul>
+
+  <h2>Restaurar backup</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Sistema → Backup</strong></li>
+    <li>Toca em <strong>Escolher ficheiro</strong> e seleciona o JSON</li>
+    <li>Toca em <strong>Importar backup</strong></li>
+    <li>Confirma o alerta</li>
+  </ol>
+
+  <div class="warning">
+    <strong>⚠️ Restaurar substitui os dados atuais</strong>
+    Ao importar, os dados existentes são <strong>substituídos</strong>. Faz sempre um backup antes de importar.
+  </div>
+
+  <div class="tip">
+    <strong>💡 Frequência recomendada</strong>
+    Faz um backup semanal, ou antes de operações grandes (ex.: importar dados novos, remover produtos).
+  </div>
+
+  <div class="danger">
+    <strong>🔒 Backup não inclui palavras-passe</strong>
+    Por segurança, as palavras-passe não são exportadas. Ao restaurar noutro dispositivo, os utilizadores têm de ser criados de novo ou repor as senhas.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 16. SISTEMA — EXPORTAR CSV                                    -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 16</div>
+  <h1>Sistema — Exportar CSV</h1>
+
+  <p>Os relatórios CSV são compatíveis com <strong>Excel</strong>, <strong>Google Sheets</strong> e <strong>LibreOffice</strong>. O formato usa:</p>
+  <ul>
+    <li>Separador <strong>;</strong> (ponto e vírgula)</li>
+    <li>Codificação <strong>UTF-16LE</strong> (acentos corretos)</li>
+  </ul>
+
+  <h2>4 exportações disponíveis</h2>
+
+  <table>
+    <tr><th>Exportação</th><th>Conteúdo</th></tr>
+    <tr><td>📊 Vendas</td><td>Histórico completo com data, produto, cliente, operador, valor</td></tr>
+    <tr><td>📦 Stock</td><td>Estado atual com categoria, stock, mínimo, preço</td></tr>
+    <tr><td>👥 Clientes</td><td>Nome, contactos, NIF, nº compras, total gasto</td></tr>
+    <tr><td>📋 Auditoria</td><td>Todas as ações com utilizador, ação, data, detalhes</td></tr>
+  </table>
+
+  <h2>Como exportar</h2>
+  <ol class="steps">
+    <li>Vai a <strong>Sistema → Exportar</strong></li>
+    <li>Localiza a exportação pretendida</li>
+    <li>Toca no botão correspondente</li>
+    <li>O ficheiro descarrega com data no nome (ex.: <code>vendas_2026-09-22.csv</code>)</li>
+  </ol>
+
+  <h2>Abrir no Excel / Sheets</h2>
+  <ul>
+    <li><strong>Excel</strong>: duplo clique — abre direto com acentos corretos</li>
+    <li><strong>Sheets</strong>: File → Import → escolhe o ficheiro → "Deteção automática"</li>
+    <li><strong>Telemóvel</strong>: escolhe "Abrir com" → Excel/Sheets</li>
+  </ul>
+
+  <div class="tip">
+    <strong>💡 Porque UTF-16LE?</strong>
+    Este formato é universalmente reconhecido pelo Excel em qualquer país — evita que "Angola" apareça como "Angola" com caracteres estranhos.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 17. SISTEMA — NUVEM                                           -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 17</div>
+  <h1>Sistema — Nuvem</h1>
+
+  <h2>Modo local vs. modo online</h2>
+
+  <table>
+    <tr><th>Aspeto</th><th>Local</th><th>Online</th></tr>
+    <tr><td>Onde ficam os dados</td><td>No dispositivo</td><td>Firebase</td></tr>
+    <tr><td>Funciona offline</td><td>✅ Sim</td><td>⚠️ Cache temporária</td></tr>
+    <tr><td>Vários dispositivos</td><td>❌ Não</td><td>✅ Sim</td></tr>
+    <tr><td>Utilizadores</td><td>Locais no dispositivo</td><td>Firebase Auth</td></tr>
+    <tr><td>Backup automático</td><td>❌ Manual</td><td>✅ Sim</td></tr>
+  </table>
+
+  <h2>Ativar modo online</h2>
+  <ol class="steps">
+    <li>Abre o menu ☰</li>
+    <li>Expande <strong>⚙️ Configurar modo online Firebase</strong></li>
+    <li>Marca ☑️ <strong>Ativar modo online</strong></li>
+    <li>Cola a <strong>configuração JSON</strong> do Firebase</li>
+    <li>(Opcional) Insere emails de administrador separados por vírgula</li>
+    <li>Toca em <strong>Salvar configuração</strong></li>
+    <li>Faz login com email e palavra-passe</li>
+  </ol>
+
+  <h2>Estado da nuvem</h2>
+  <p>Vai a <strong>Sistema → Nuvem</strong> para ver o diagnóstico:</p>
+  <ul>
+    <li>Se o Firebase está ligado (fbReady, app, auth, db, api)</li>
+    <li>Projeto e email do utilizador atual</li>
+    <li>Se há erros recentes de autenticação</li>
+    <li>Botões <strong>🧹 Limpar cache</strong> e <strong>🐛 Debug</strong></li>
+  </ul>
+
+  <div class="tip">
+    <strong>💡 Sincronização automática</strong>
+    Quando estás em modo online, cada operação (venda, produto, cliente, etc.) é sincronizada imediatamente para a nuvem.
+  </div>
+
+  <div class="warning">
+    <strong>⚠️ Verificação de email</strong>
+    Ao criar conta online, recebes um email de verificação. Só podes entrar depois de confirmar o email.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 18. MULTI-LOJA                                                -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 18</div>
+  <h1>Multi-loja</h1>
+
+  <p>O sistema suporta <strong>várias lojas independentes</strong> no mesmo dispositivo. Cada loja tem dados completamente separados.</p>
+
+  <h2>O que é separado por loja</h2>
+  <ul>
+    <li>Produtos (catálogo, stocks, preços)</li>
+    <li>Histórico (vendas, stock, caixa)</li>
+    <li>Clientes</li>
+    <li>Despesas</li>
+  </ul>
+
+  <h2>O que é partilhado</h2>
+  <ul>
+    <li>Utilizadores (mas cada um pode estar associado a lojas específicas)</li>
+    <li>Auditoria</li>
+  </ul>
+
+  <h2>Trocar de loja</h2>
+  <p>Usa o <strong>seletor no topo</strong> (ao lado do badge "Local/Firebase"):</p>
+  <ol class="steps">
+    <li>Toca no nome da loja atual</li>
+    <li>Escolhe outra loja da lista</li>
+    <li>Os dados são recarregados automaticamente</li>
+  </ol>
+
+  <h2>Gerir lojas</h2>
+  <ol class="steps">
+    <li>Abre o menu ☰</li>
+    <li>Toca em <strong>🏪 Gerir lojas</strong></li>
+    <li>Aparece a lista com todas as lojas</li>
+    <li>Podes:
+      <ul>
+        <li><strong>Mudar</strong> — trocar a loja ativa</li>
+        <li><strong>✏️ Renomear</strong> — alterar o nome</li>
+        <li><strong>🗑️</strong> — apagar a loja e todos os seus dados</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>Criar nova loja</h2>
+  <ol class="steps">
+    <li>Em <strong>🏪 Gerir lojas</strong>, escreve o nome no campo do fundo</li>
+    <li>Toca em <strong>➕ Criar loja</strong></li>
+    <li>A loja aparece na lista e no seletor da topbar</li>
+  </ol>
+
+  <div class="danger">
+    <strong>⚠️ Apagar loja é irreversível</strong>
+    Apagar uma loja remove <strong>todos</strong> os seus produtos, vendas, clientes e despesas. Não é possível apagar a última loja.
+  </div>
+
+  <h2>Associar utilizadores a lojas</h2>
+  <p>Em <strong>Usuários → Editar</strong>, aparece a secção "Lojas com acesso" com checkboxes. Marca as lojas a que o utilizador pode aceder.</p>
+
+  <div class="info">
+    <strong>ℹ️ Administradores veem tudo</strong>
+    Um administrador vê automaticamente todas as lojas, independentemente dos checkboxes.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 19. SEGURANÇA E SESSÃO                                        -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 19</div>
+  <h1>Segurança e sessão</h1>
+
+  <h2>Timeout por inatividade</h2>
+  <p>A sessão expira automaticamente ao fim de <strong>30 minutos sem atividade</strong>.</p>
+
+  <ul>
+    <li><strong>1 minuto antes</strong> de expirar, aparece um aviso</li>
+    <li>Podes tocar em <strong>Continuar sessão</strong> para renovar</li>
+    <li>Se não tocares, a sessão termina e voltas ao login</li>
+  </ul>
+
+  <h2>Eventos que contam como atividade</h2>
+  <ul>
+    <li>Clicar em qualquer parte</li>
+    <li>Premir teclas</li>
+    <li>Tocar no ecrã</li>
+    <li>Fazer scroll</li>
+  </ul>
+
+  <h2>Logout manual</h2>
+  <ol class="steps">
+    <li>Toca no botão <strong>Sair</strong> na topbar</li>
+    <li>A sessão é terminada</li>
+    <li>Regressas ao ecrã de login</li>
+  </ol>
+
+  <h2>Boa prática de segurança</h2>
+  <ul>
+    <li>Usa palavras-passe fortes (mínimo 8 caracteres, misturando letras e números)</li>
+    <li>Não partilhes a conta de administrador</li>
+    <li>Faz logout quando deixares o dispositivo sozinho</li>
+    <li>Ativa o modo online para teres backup automático</li>
+    <li>Confere periodicamente a <strong>Auditoria</strong> para detetar ações estranhas</li>
+  </ul>
+
+  <div class="danger">
+    <strong>🔒 Verificação de email</strong>
+    No modo online, a conta só fica ativa após clicar no link enviado para o email. Isto previne registos falsos.
+  </div>
+
+  <div class="tip">
+    <strong>💡 Sessão expirada = auditoria registada</strong>
+    Cada expiração por timeout é registada com ação <code>session-timeout</code>.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 20. FAQ                                                       -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="chapter-number">Capítulo 20</div>
+  <h1>Perguntas frequentes</h1>
+
+  <h3>Não consigo instalar o PWA. O botão "Instalar" não aparece.</h3>
+  <p>Verifica se estás no <strong>Chrome</strong> (não noutro browser ou dentro de outra app). Limpa os dados do site (⋮ → Definições → Privacidade → Limpar dados) e tenta novamente.</p>
+
+  <h3>Perdi os dados. Como recuperar?</h3>
+  <p>Se fizeste backup, importa o JSON em <strong>Sistema → Backup</strong>. Se estiveres em modo online, os dados estão no Firebase e voltam ao fazer login.</p>
+
+  <h3>Como mudar o preço de grosso de um produto?</h3>
+  <p>Vai a <strong>Gestão → Produtos → Editar</strong> e altera o campo <strong>Preço de grosso</strong> + <strong>Quantidade mínima</strong>.</p>
+
+  <h3>Posso vender CF abaixo do preço de tabela?</h3>
+  <p>Apenas administradores. Operadores veem o campo bloqueado no preço mínimo.</p>
+
+  <h3>Como o operador X vê só a Loja 2?</h3>
+  <p>Edita o utilizador em <strong>Usuários → Editar</strong>, e na secção "Lojas com acesso" desmarca todas exceto a Loja 2. Faz logout e login com ele.</p>
+
+  <h3>As vendas da Loja 2 aparecem na Loja Principal?</h3>
+  <p>Não. Cada loja tem histórico <strong>totalmente separado</strong>. Para ver consolidado, precisas exportar CSV de cada loja.</p>
+
+  <h3>Posso usar a app offline?</h3>
+  <p>Sim, no modo local funciona 100% offline. No modo online, funcionas a partir de cache e sincroniza quando voltares a ter internet.</p>
+
+  <h3>Como alterar a comissão de um operador?</h3>
+  <p><strong>Usuários → Editar → Comissão (%)</strong>. O valor aplica-se às vendas futuras.</p>
+
+  <h3>O que acontece se apagar um produto com vendas?</h3>
+  <p>O sistema bloqueia. Para preservar relatórios, produtos com histórico não podem ser removidos.</p>
+
+  <h3>Como imprimir recibo térmico (80mm)?</h3>
+  <p>Depois de finalizar a venda, toca em <strong>🎫 Imprimir 80mm</strong>. Se a impressora térmica estiver emparelhada por Bluetooth, o formato já sai ajustado.</p>
+
+  <h3>Como funciona a auditoria de sessão?</h3>
+  <p>Sempre que entras, sais, ou a sessão expira, é criado um registo em <strong>Auditoria</strong>.</p>
+
+  <h3>Posso ter várias lojas em dispositivos diferentes?</h3>
+  <p>Sim, se usares modo online. Cada dispositivo faz login e escolhe a loja a que tem acesso.</p>
+
+  <h3>Como exportar para Excel?</h3>
+  <p>Vai a <strong>Sistema → Exportar</strong> e escolhe a categoria. Descarrega em CSV que abre diretamente no Excel.</p>
+
+  <h3>Posso editar uma venda já registada?</h3>
+  <p>Não. As vendas são registos imutáveis. Se houver erro, faz uma venda de ajuste ou um movimento manual no caixa.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- CONTRACAPA                                                    -->
+<!-- ============================================================ -->
+<div class="page cover" style="justify-content:center;">
+  <div class="cover-logo">SS</div>
+  <h1 style="color:#fff; border:none; font-size:32pt;">SALDAR SERVIÇOS</h1>
+  <p class="slogan">Gestão simples, resultados reais.</p>
+
+  <div style="margin-top: 30mm; font-size: 14pt;">
+    <p style="margin-bottom: 12mm;">Obrigado por usar o nosso sistema.</p>
+    <p style="font-size: 11pt; opacity: 0.85;">
+      Para sugestões, dúvidas ou suporte:<br>
+      consulte o administrador do sistema.
+    </p>
+  </div>
+
+  <div class="footer">
+    © 2026 Saldar Serviços<br>
+    Documento de formação interna · Edição 1
+  </div>
+</div>
+
+</body>
+</html>
