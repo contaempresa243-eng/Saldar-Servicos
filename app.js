@@ -843,14 +843,15 @@ function showApp(show) {
     const user = getCurrentUser();
     if (user) document.body.setAttribute('data-role', user.role);
     renderAll();
-    // Restaurar tab anterior ao refresh
-try {
-  const savedTab = localStorage.getItem('saldar-active-tab');
-  if (savedTab && savedTab !== 'dashboard' && can(savedTab)) {
-    activate(savedTab);
-  }
-} catch {}
-    setTimeout(() => hookIdleTimerToSession(), 500);
+    // Ler tab ANTES do renderAll (que sobrescreve com dashboard)
+let savedTab = null;
+try { savedTab = localStorage.getItem('saldar-active-tab'); } catch {}
+renderAll();
+// Restaurar tab anterior ao refresh
+if (savedTab && savedTab !== 'dashboard' && can(savedTab)) {
+  activate(savedTab);
+}
+setTimeout(() => hookIdleTimerToSession(), 500);
   } else {
     document.body.removeAttribute('data-role');
     stopIdleTimer();
