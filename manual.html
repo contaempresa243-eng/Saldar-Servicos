@@ -296,28 +296,65 @@
       margin: 0;
     }
 
-    @media print {
-      html, body {
-        background: #fff;
+ @media print {
+  html, body {
+    background: #fff;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .page {
+    margin: 0;
+    box-shadow: none;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .page:last-child {
+    page-break-after: auto;
+  }
+  .no-print {
+    display: none;
+  }
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+  p, li, table {
+    page-break-inside: avoid;
+  }
+
+  /* Força fundos coloridos a imprimir */
+  .cover {
+    background: linear-gradient(160deg, #0f766e 0%, #14b8a6 100%) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .cover-logo {
+    background: rgba(255,255,255,0.15) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  th {
+    background: #0f766e !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  tr:nth-child(even) td {
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .tip    { background: #ecfdf5 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .warning{ background: #fffbeb !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .info   { background: #eff6ff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .danger { background: #fef2f2 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .steps li::before {
+    background: #0f766e !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
       }
-      .page {
-        margin: 0;
-        box-shadow: none;
-        page-break-after: always;
-      }
-      .page:last-child {
-        page-break-after: auto;
-      }
-      .no-print {
-        display: none;
-      }
-      h1, h2, h3 {
-        page-break-after: avoid;
-      }
-      p, li, table {
-        page-break-inside: avoid;
-      }
-    }
 
     /* ============ BOTÃO IMPRIMIR ============ */
     .print-bar {
