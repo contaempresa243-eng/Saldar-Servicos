@@ -843,6 +843,13 @@ function showApp(show) {
     const user = getCurrentUser();
     if (user) document.body.setAttribute('data-role', user.role);
     renderAll();
+    // Restaurar tab anterior ao refresh
+try {
+  const savedTab = localStorage.getItem('saldar-active-tab');
+  if (savedTab && savedTab !== 'dashboard' && can(savedTab)) {
+    activate(savedTab);
+  }
+} catch {}
     setTimeout(() => hookIdleTimerToSession(), 500);
   } else {
     document.body.removeAttribute('data-role');
@@ -852,6 +859,7 @@ function showApp(show) {
 }
 
 function activate(tabId) {
+  try { localStorage.setItem('saldar-active-tab', tabId); } catch {}
   const tabBtn = document.querySelector(`.tab[data-tab="${tabId}"]`);
   const group = tabBtn?.dataset.group;
 
