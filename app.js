@@ -5019,6 +5019,10 @@ if ('serviceWorker' in navigator) {
 (async function init() {
   _origConsoleError('[init] A iniciar Saldar Serviços v11...');
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
+  // Evitar flash do login durante a verificação de autenticação
+if (cloudMode() && els.authShell) {
+  els.authShell.classList.add('hidden');
+}
 
   if (els.cloudEnabled) els.cloudEnabled.checked = settings.cloudEnabled;
   if (els.firebaseConfigInput) els.firebaseConfigInput.value = settings.firebaseConfig || '';
@@ -5033,6 +5037,13 @@ if (els.expenseDate && !els.expenseDate.value) {
 
   if (cloudMode()) {
     await initFirebase();
+    // Fallback: se em 3s nem login nem app estão visíveis, mostra login
+setTimeout(() => {
+  if (els.authShell?.classList.contains('hidden') &&
+      els.appShell?.classList.contains('hidden')) {
+    els.authShell.classList.remove('hidden');
+  }
+}, 3000);
   } else {
     session.currentUser = state.users.find((u) => u.id === state.currentUserId) || null;
     showApp(Boolean(session.currentUser));
