@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v41)
+// SALDAR SERVIÇOS — app.js (v42)
 // =====================================================================
 
 // ============================================================
@@ -16,7 +16,12 @@ const SETTINGS_KEY = 'saldar-servicos-v5-settings';
 const LEGACY_KEYS = ['saldar-servicos-v4-local', 'saldar-servicos-v3-local', 'saldar-servicos-v2', 'saldar-servicos-v1'];
 const LEGACY_SETTING_KEYS = ['saldar-servicos-v4-settings', 'saldar-servicos-v3-settings'];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const pad2 = (n) => String(n).padStart(2, '0');
+// Datas em hora LOCAL (Angola = UTC+1). toISOString() usa UTC e empurrava vendas
+// entre 00:00 e 01:00 para o dia anterior.
+const localDay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const today = () => localDay(new Date());
+const dayOf = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : localDay(d); };
 const now = () => new Date().toISOString();
 const money = (v) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'AOA', maximumFractionDigits: 2 }).format(Number(v || 0));
 
@@ -264,7 +269,14 @@ const session = {
   lastAuthError: null
 };
 
-const saveLocal = () => localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+const saveLocal = () => {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); return true; }
+  catch (err) {
+    _origConsoleError('[saveLocal] Falha ao gravar:', err);
+    try { toast('⚠️ Não foi possível guardar os dados neste telemóvel (sem espaço?). Faça um backup já.', 12000); } catch {}
+    return false;
+  }
+};
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
 const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Operador';
@@ -1129,7 +1141,7 @@ function renderSelectOptions() {
 }
 
 function getTodaySales() {
-  return state.history.filter((item) => item.type === 'venda' && item.date.startsWith(today()));
+  return state.history.filter((item) => item.type === 'venda' && dayOf(item.date) === today());
 }
 
 function getCashBalance() {
@@ -1154,7 +1166,7 @@ function salesForRange(range) {
 }
 
 function cashForRange(range) {
-  if (range === 'today') return state.cashMovements.filter((item) => item.date.startsWith(today()));
+  if (range === 'today') return state.cashMovements.filter((item) => dayOf(item.date) === today());
   const start = rangeStart(range);
   return state.cashMovements.filter((item) => new Date(item.date) >= start);
 }
@@ -1349,13 +1361,13 @@ function normalizeHistory() {
 
     // Data início
     if (dateFrom) {
-      const itemDate = (item.date || '').slice(0, 10);
+      const itemDate = dayOf(item.date);
       if (itemDate < dateFrom) return false;
     }
 
     // Data fim
     if (dateTo) {
-      const itemDate = (item.date || '').slice(0, 10);
+      const itemDate = dayOf(item.date);
       if (itemDate > dateTo) return false;
     }
 
@@ -2132,11 +2144,11 @@ function getSalesByDay(days = 7) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(todayDate);
     d.setDate(d.getDate() - i);
-    const iso = d.toISOString().slice(0, 10);
+    const iso = localDay(d);
     const label = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
 
     const total = (state.history || [])
-      .filter(h => h.type === 'venda' && h.date && h.date.slice(0, 10) === iso)
+      .filter(h => h.type === 'venda' && h.date && dayOf(h.date) === iso)
       .reduce((s, h) => s + Number(h.total || 0), 0);
 
     result.push({ label, total });
@@ -2558,47 +2570,115 @@ async function exportAuditCsv() {
 // Backup
 // =====================================================================
 
+const BACKUP_KEY = 'saldar-last-backup';
+
 function downloadBackup() {
-  const safeUsers = state.users.map(({ password, ...rest }) => rest);
+  // Backup COMPLETO: todas as lojas (produtos, vendas, caixa, clientes, despesas),
+  // utilizadores (com a palavra-passe já em hash) e auditoria.
+  const currentData = state.storesData?.[state.currentStoreId];
+  if (currentData) {
+    currentData.products = state.products;
+    currentData.history = state.history;
+    currentData.cashMovements = state.cashMovements;
+    currentData.clients = state.clients;
+    currentData.expenses = state.expenses;
+  }
   const payload = {
-    version: 11,
+    version: 12,
+    app: 'saldar-servicos',
     exportedAt: now(),
     data: {
-      products: state.products,
-      history: state.history,
-      cashMovements: state.cashMovements,
-      users: safeUsers,
+      stores: state.stores,
+      currentStoreId: state.currentStoreId,
+      storesData: state.storesData,
+      users: state.users,
       auditLog: state.auditLog || []
     }
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `saldar-servicos-backup-${today()}.json`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  try { localStorage.setItem(BACKUP_KEY, String(Date.now())); } catch {}
 }
 
 async function importBackupFile(file) {
   if (!file) return toast('Selecione um arquivo de backup.');
-  const text = await file.text();
   let parsed;
-  try { parsed = JSON.parse(text); } catch { return toast('Arquivo JSON inválido.'); }
-  const source = parsed.data || parsed;
-  state = normalize({
-    products: source.products,
-    history: source.history,
-    cashMovements: source.cashMovements,
-    users: source.users,
-    currentUserId: state.currentUserId,
-    auditLog: source.auditLog
+  try { parsed = JSON.parse(await file.text()); } catch { return toast('Arquivo JSON inválido.'); }
+  const source = parsed?.data || parsed;
+  if (!source || typeof source !== 'object') return toast('Arquivo de backup inválido.');
+
+  const isFull = source.storesData && Array.isArray(source.stores) && source.stores.length > 0;
+  const isLegacy = Array.isArray(source.products) || Array.isArray(source.history);
+  if (!isFull && !isLegacy) return toast('Este ficheiro não parece um backup do Saldar.');
+
+  const ok = await appConfirm(
+    isFull
+      ? 'Restaurar este backup? Todos os dados atuais (lojas, vendas, clientes, despesas e utilizadores) serão substituídos.'
+      : 'Backup antigo (só produtos, vendas e caixa). Será colocado na loja ativa e substitui os dados dela. Continuar?',
+    'Restaurar backup', '♻️'
+  );
+  if (!ok) return;
+
+  // cópia de segurança automática do estado atual, antes de substituir
+  try { localStorage.setItem(LOCAL_KEY + '-antes-restauro', JSON.stringify(state)); } catch {}
+
+  const keepUserId = state.currentUserId;
+  let next;
+  if (isFull) {
+    next = normalize({
+      stores: source.stores,
+      currentStoreId: source.currentStoreId,
+      storesData: source.storesData,
+      users: source.users,
+      currentUserId: keepUserId,
+      auditLog: source.auditLog
+    });
+  } else {
+    // formato antigo: aplica na loja ativa, mantém as outras lojas
+    const merged = JSON.parse(JSON.stringify(state));
+    const sd = merged.storesData[merged.currentStoreId];
+    sd.products = Array.isArray(source.products) ? source.products : sd.products;
+    sd.history = Array.isArray(source.history) ? source.history : sd.history;
+    sd.cashMovements = Array.isArray(source.cashMovements) ? source.cashMovements : sd.cashMovements;
+    if (Array.isArray(source.clients)) sd.clients = source.clients;
+    if (Array.isArray(source.expenses)) sd.expenses = source.expenses;
+    merged.auditLog = Array.isArray(source.auditLog) ? source.auditLog : merged.auditLog;
+    next = normalize(merged);
+  }
+
+  // Utilizadores sem palavra-passe no ficheiro (backups antigos): mantém a que já existe
+  const previousUsers = state.users || [];
+  next.users = (next.users || []).map((u) => {
+    if (u.password) return u;
+    const prev = previousUsers.find((p) => p.id === u.id || (p.username && p.username === u.username));
+    return { ...u, password: prev?.password || '' };
   });
-  state.users = state.users.map((u) => ({ ...u, password: u.password || '' }));
+  // Nunca ficar sem nenhum administrador capaz de entrar
+  const canLogin = next.users.some((u) => u.role === 'admin' && u.active !== false && u.password);
+  if (!canLogin) next.users = previousUsers;
+
+  state = next;
+  applyStoreAliases(state);
   saveLocal();
   await saveState();
+  if (!cloudMode() && !state.users.some((u) => u.id === keepUserId)) {
+    // o utilizador atual não existe no backup: pede novo login
+    state.currentUserId = null;
+    session.currentUser = null;
+    saveLocal();
+    showApp(false);
+    toast('Backup restaurado. Entre novamente com um utilizador do backup.', 9000);
+    return;
+  }
   renderAll();
-  toast('Backup importado com sucesso.');
+  toast('Backup restaurado com sucesso.');
 }
 
 // =====================================================================
@@ -2745,7 +2825,35 @@ els.loginForm?.addEventListener('submit', async (e) => {
   showApp(true);
   toast(`Bem-vindo, ${candidate.fullName}.`);
   await logAudit('login', { username: candidate.username, mode: 'local' });
+  await warnDefaultPassword(candidate);
+  maybeRemindBackup();
 });
+
+// Avisos de segurança do modo local ------------------------------------
+async function warnDefaultPassword(user) {
+  try {
+    const weak = [await hashPassword('admin123'), await hashPassword('1234')];
+    if (user && weak.includes(user.password)) {
+      await appAlert(
+        'Está a usar a palavra-passe padrão do sistema.\n\nMude-a já: Gestão › Usuários › Editar › nova palavra-passe.',
+        'Palavra-passe insegura', '🔐'
+      );
+    }
+  } catch {}
+}
+
+function maybeRemindBackup() {
+  try {
+    if (cloudMode() || !can('backup')) return;
+    const last = Number(localStorage.getItem(BACKUP_KEY) || 0);
+    const days = last ? (Date.now() - last) / 86400000 : Infinity;
+    if (days >= 7) {
+      toast(last
+        ? `⚠️ Último backup há ${Math.floor(days)} dias. Vá a Sistema › Backup e exporte.`
+        : '⚠️ Ainda não fez backup. Os dados só existem neste telemóvel: Sistema › Backup › Exportar.', 12000);
+    }
+  } catch {}
+}
 
 // =====================================================================
 // Reset / verificação
@@ -3055,7 +3163,20 @@ async function clearCart() {
   renderCart();
 }
 
+let saleBusy = false;
 async function finalizeSale() {
+  if (saleBusy) return;   // evita venda duplicada por toque duplo
+  saleBusy = true;
+  if (els.finalizeSaleBtn) els.finalizeSaleBtn.disabled = true;
+  try {
+    await finalizeSaleInner();
+  } finally {
+    saleBusy = false;
+    if (els.finalizeSaleBtn) els.finalizeSaleBtn.disabled = false;
+  }
+}
+
+async function finalizeSaleInner() {
   if (cart.items.length === 0) {
     toast('Adicione pelo menos um produto ao carrinho.');
     return;
@@ -3192,8 +3313,11 @@ document.getElementById('saleForm')?.addEventListener('submit', (e) => {
   if (!product || qty <= 0 || unitPrice < 0) return;
 
   // Bloquear desconto a operadores em CF
-  if (product.category === 'CF' && !can('vendaDesconto') && unitPrice < product.price) {
-    return toast(`Sem permissão para desconto. Preço mínimo: ${money(product.price)}.`);
+  if (product.category === 'CF' && !can('vendaDesconto')) {
+    const applicable = getApplicablePrice(product, qty, isCurrentSaleClientVip()).price;
+    if (unitPrice < applicable) {
+      return toast(`Sem permissão para desconto. Preço mínimo: ${money(applicable)}.`);
+    }
   }
 
   // Validar stock (sem descontar ainda — só no finalizeSale)
@@ -4485,7 +4609,7 @@ window.imprimirRecibo = function(saleId) {
       text += `Gestão simples, resultados reais.\n\n`;
       text += `Data: ${date}\n`;
       text += `Operador: ${sale.createdByName || 'Sistema'}\n`;
-      if (sale.note) text += `Cliente: ${sale.note}\n`;
+      if (sale.clientName) text += `Cliente: ${sale.clientName}\n`;
       text += `-------------------\n`;
       items.forEach(i => {
         text += `${i.productName}\n`;
@@ -4781,7 +4905,7 @@ function getSalesInCommissionRange(range) {
 
   if (range === 'today') {
     const iso = today();
-    return all.filter(h => (h.date || '').slice(0, 10) === iso);
+    return all.filter(h => dayOf(h.date) === iso);
   }
   if (range === '7d') start.setDate(start.getDate() - 6);
   if (range === '30d') start.setDate(start.getDate() - 29);
@@ -5017,7 +5141,9 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v11...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v42...');
+  // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
+  try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
   // Evitar flash do login durante a verificação de autenticação
 if (cloudMode() && els.authShell) {
@@ -5047,6 +5173,7 @@ setTimeout(() => {
   } else {
     session.currentUser = state.users.find((u) => u.id === state.currentUserId) || null;
     showApp(Boolean(session.currentUser));
+    if (session.currentUser) setTimeout(maybeRemindBackup, 1500);
   }
 
   _origConsoleError('[init] Pronto. Usa window.__saldarDebug() para diagnóstico.');
