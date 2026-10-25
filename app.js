@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v42)
+// SALDAR SERVIÇOS — app.js (v43)
 // =====================================================================
 
 // ============================================================
@@ -251,9 +251,11 @@ function applyStoreAliases(s) {
   });
 }
 
-let state = loadLocal();
-applyStoreAliases(state);
 let settings = loadSettings();
+// Modo nuvem: o estado vem do Firestore; os dados locais ficam intactos (para a migração).
+const __cloudOn = Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
+let state = __cloudOn ? cloudEmptyState() : loadLocal();
+applyStoreAliases(state);
 
 const session = {
   authView: 'login',
@@ -270,6 +272,7 @@ const session = {
 };
 
 const saveLocal = () => {
+  if (cloudMode()) return true; // na nuvem nunca se escreve por cima dos dados locais
   try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); return true; }
   catch (err) {
     _origConsoleError('[saveLocal] Falha ao gravar:', err);
@@ -308,6 +311,11 @@ function getCurrentStoreData() {
 function switchStore(storeId) {
   if (!state.storesData?.[storeId]) return false;
   state.currentStoreId = storeId;
+  if (cloudMode()) {
+    try { localStorage.setItem(STORE_PREF_KEY, storeId); } catch {}
+    if (sync.storeId !== storeId) startStoreListeners(storeId);
+    return true;
+  }
   saveLocal();
   return true;
 }
@@ -322,6 +330,21 @@ function createStore(name) {
   const base = defaults();
   const firstStoreId = base.stores[0].id;
   const defaultProducts = JSON.parse(JSON.stringify(base.storesData[firstStoreId].products));
+
+  if (cloudMode()) {
+    if (!session.db || !session.api || !isAdmin()) return null;
+    const { writeBatch, doc } = session.api;
+    const db = session.db;
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'stores', id), { name: cleanName, createdAt: store.createdAt });
+    batch.set(doc(db, 'stores', id, 'meta', 'balances'), ZERO_BAL());
+    defaultProducts.forEach((p, i) => {
+      const { id: pid, ...rest } = p;
+      batch.set(doc(db, 'stores', id, 'products', pid), { ...rest, order: i });
+    });
+    commitTracked(batch);
+    return store;
+  }
 
   state.stores.push(store);
   state.storesData[id] = {
@@ -340,6 +363,11 @@ function renameStore(storeId, newName) {
   if (!store) return false;
   const clean = String(newName || '').trim();
   if (!clean) return false;
+  if (cloudMode()) {
+    if (!isAdmin()) return false;
+    session.api.updateDoc(session.api.doc(session.db, 'stores', storeId), { name: clean }).catch(onWriteError);
+    return true;
+  }
   store.name = clean;
   saveLocal();
   return true;
@@ -349,6 +377,13 @@ function deleteStore(storeId) {
   if (getStores().length <= 1) return false;
   const idx = state.stores.findIndex(s => s.id === storeId);
   if (idx < 0) return false;
+
+  if (cloudMode()) {
+    if (!isAdmin()) return false;
+    // apaga a loja; os registos (subcoleções) ficam órfãos na nuvem mas deixam de aparecer
+    session.api.deleteDoc(session.api.doc(session.db, 'stores', storeId)).catch(onWriteError);
+    return true;
+  }
 
   state.stores.splice(idx, 1);
   delete state.storesData[storeId];
@@ -785,6 +820,7 @@ function markMode() {
   const online = cloudMode();
   if (els.modeBadge) els.modeBadge.textContent = online ? 'Modo online' : 'Modo local';
   if (els.cloudTopBadge) els.cloudTopBadge.textContent = online ? 'Firebase' : 'Local';
+  if (online) { try { updateSyncBadge(); } catch {} }
   if (els.authHint) els.authHint.textContent = online
     ? 'Use email e palavra-passe para entrar no modo online.'
     : 'Use os acessos locais ou ative o modo online com Firebase.';
@@ -804,11 +840,12 @@ function updateConnectivityBadge() {
   const online = navigator.onLine;
   let text = '';
   let cls = '';
+  const pend = (typeof sync !== 'undefined' && sync.pending) ? sync.pending : 0;
   if (configured && online) {
-    text = '🟢 Firebase ativo';
+    text = pend ? `🔄 A sincronizar (${pend})` : '🟢 Firebase ativo';
     cls = 'online';
   } else if (configured && !online) {
-    text = '🟡 Offline — a usar cache';
+    text = pend ? `🟡 Offline — ${pend} por enviar` : '🟡 Offline — a usar cache';
     cls = 'offline-cache';
   } else {
     text = '⚪ Modo local';
@@ -1099,26 +1136,25 @@ async function logAudit(action, details = {}) {
     details: details || {}
   };
 
+  if (cloudMode()) {
+    if (!session.fbReady || !session.db || !session.api || !session.currentUser) return;
+    try {
+      const { doc, setDoc } = session.api;
+      // sem await: não bloqueia quando está offline (fica na fila de envio)
+      setDoc(doc(session.db, 'auditLog', entry.id), {
+        action: entry.action, userId: entry.userId, userName: entry.userName,
+        userRole: entry.userRole, date: entry.date, details: entry.details
+      }).catch((err) => _origConsoleError('[logAudit] ❌', err?.code || err?.message));
+    } catch (err) {
+      _origConsoleError('[logAudit] ❌ Falha:', err?.code || err?.message);
+    }
+    return;
+  }
+
   if (!Array.isArray(state.auditLog)) state.auditLog = [];
   state.auditLog.unshift(entry);
   if (state.auditLog.length > 1000) state.auditLog = state.auditLog.slice(0, 1000);
   saveLocal();
-
-  if (!cloudMode() || !session.fbReady || !session.db || !session.api) return;
-  try {
-    const { doc, setDoc } = session.api;
-    await setDoc(doc(session.db, 'auditLog', entry.id), {
-      action: entry.action,
-      userId: entry.userId,
-      userName: entry.userName,
-      userRole: entry.userRole,
-      date: entry.date,
-      details: entry.details
-    });
-    _origConsoleError('[logAudit] ✅', action);
-  } catch (err) {
-    _origConsoleError('[logAudit] ❌ Falha:', err?.code || err?.message);
-  }
 }
 
 // =====================================================================
@@ -1145,9 +1181,8 @@ function getTodaySales() {
 }
 
 function getCashBalance() {
-  const salesCash = state.history.filter((item) => item.type === 'venda').reduce((sum, item) => sum + Number(item.total || 0), 0);
-  const manualCash = state.cashMovements.reduce((sum, item) => sum + (item.kind === 'entrada' ? Number(item.amount || 0) : -Number(item.amount || 0)), 0);
-  return salesCash + manualCash;
+  const b = getBalances();
+  return b.dinheiro + b.transferencia + b.multicaixa;
 }
 
 function rangeStart(range) {
@@ -1222,7 +1257,15 @@ function renderStats() {
     { label: 'Usuários ativos', value: activeUsers },
     { label: 'Mais vendido hoje', value: topProduct }
   ];
-  if (can('verSaldoCaixa')) stats.splice(3, 0, { label: 'Caixa acumulado', value: money(getCashBalance()) });
+  if (can('verSaldoCaixa')) {
+    const b = getBalances();
+    const f = (v) => (b.ready ? money(v) : '…');
+    stats.splice(3, 0,
+      { label: '💵 Caixa (dinheiro)', value: f(b.dinheiro) },
+      { label: '🏦 Transferência', value: f(b.transferencia) },
+      { label: '💳 Multicaixa', value: f(b.multicaixa) },
+      { label: '📈 Total vendido', value: f(b.totalVendido) });
+  }
 
   els.statsGrid.innerHTML = stats
     .map((s) => {
@@ -1451,14 +1494,13 @@ function renderHistory() {
 
 function renderCash() {
   if (!els.cashSummary) return;
-  const entradas = state.cashMovements.filter((m) => m.kind === 'entrada').reduce((s, m) => s + Number(m.amount || 0), 0);
-  const saidas = state.cashMovements.filter((m) => m.kind === 'saida').reduce((s, m) => s + Number(m.amount || 0), 0);
-  const vendas = state.history.filter((m) => m.type === 'venda').reduce((s, m) => s + Number(m.total || 0), 0);
+  const b = getBalances();
+  const f = (v) => (b.ready ? money(v) : '…');
   els.cashSummary.innerHTML = `
-    <div class="item"><strong>Total de vendas</strong><span>${money(vendas)}</span></div>
-    <div class="item"><strong>Entradas manuais</strong><span>${money(entradas)}</span></div>
-    <div class="item"><strong>Saídas manuais</strong><span>${money(saidas)}</span></div>
-    <div class="item"><strong>Saldo atual</strong><span class="badge">${money(getCashBalance())}</span></div>
+    <div class="item"><strong>💵 Caixa (dinheiro)</strong><span class="badge">${f(b.dinheiro)}</span><br /><span>Vendas em dinheiro ${f(b.vD)} + entradas ${f(b.cIn)} − saídas ${f(b.cOut)}</span></div>
+    <div class="item"><strong>🏦 Transferência</strong><span class="badge">${f(b.transferencia)}</span><br /><span>Vendas pagas por transferência</span></div>
+    <div class="item"><strong>💳 Multicaixa</strong><span class="badge">${f(b.multicaixa)}</span><br /><span>Vendas pagas por Multicaixa</span></div>
+    <div class="item"><strong>📈 Total vendido</strong><span class="badge">${f(b.totalVendido)}</span><br /><span>Soma das três contas de vendas. As entradas/saídas manuais afetam só o Caixa (dinheiro).</span></div>
   `;
 }
 
@@ -1522,9 +1564,10 @@ function renderDashboardFinanceiro() {
     return;
   }
   const todaySales = getTodaySales();
-  const allTimeVendas = state.history.filter((item) => item.type === 'venda').reduce((s, i) => s + Number(i.total || 0), 0);
-  const totalEntradas = state.cashMovements.filter((m) => m.kind === 'entrada').reduce((s, m) => s + Number(m.amount || 0), 0);
-  const totalSaidas = state.cashMovements.filter((m) => m.kind === 'saida').reduce((s, m) => s + Number(m.amount || 0), 0);
+  const bal = getBalances();
+  const allTimeVendas = bal.totalVendido;
+  const totalEntradas = bal.cIn;
+  const totalSaidas = bal.cOut;
   const saldoLiquido = allTimeVendas + totalEntradas - totalSaidas;
 
   const payments = paymentBreakdownToday();
@@ -1553,6 +1596,9 @@ function renderDashboardFinanceiro() {
       <div class="financeiro-item"><strong>Entradas (Manuais):</strong> <span>${money(totalEntradas)}</span></div>
       <div class="financeiro-item"><strong>Saídas (Manuais):</strong> <span style="color:var(--danger)">${money(totalSaidas)}</span></div>
       <div class="financeiro-item" style="font-weight:700; border-top: 2px solid var(--primary); padding-top:10px;"><strong>Saldo Líquido:</strong> <span>${money(saldoLiquido)}</span></div>
+      <div class="financeiro-item"><strong>💵 Caixa (dinheiro):</strong> <span>${money(bal.dinheiro)}</span></div>
+      <div class="financeiro-item"><strong>🏦 Transferência:</strong> <span>${money(bal.transferencia)}</span></div>
+      <div class="financeiro-item"><strong>💳 Multicaixa:</strong> <span>${money(bal.multicaixa)}</span></div>
       <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 10px;">
         <strong style="display:block; text-align:center;">Métodos de Pagamento (Hoje)</strong>
         <div class="pie-chart" style="background: conic-gradient(${pieGradient});"></div>
@@ -1791,7 +1837,16 @@ function renderCloudPanel() {
     <div class="item"><strong>Modo atual</strong><span>${online ? 'Online com Firebase' : 'Local no dispositivo'}</span></div>
     <div class="item"><strong>Projeto</strong><span>${online ? esc(cloudProjectName()) : 'Não aplicado'}</span></div>
     <div class="item"><strong>Sessão</strong><span>${current ? esc(`${current.fullName} (${roleLabel(current.role)})`) : 'Nenhum usuário autenticado'}</span></div>
-    <div class="item"><strong>Estado da sincronização</strong><span>${online ? (session.fbReady ? 'Sincronização ativa' : 'Inicializando conexão') : 'Dados guardados localmente'}</span></div>
+    <div class="item"><strong>Estado da sincronização</strong><span>${online ? (session.fbReady ? (sync.ready ? (sync.pending ? `A enviar ${sync.pending} operação(ões)…` : 'Tudo sincronizado ✅') : 'A carregar dados da loja…') : 'Inicializando conexão') : 'Dados guardados localmente'}</span></div>
+    ${online ? `<div class="item">
+      <strong>Lojas e dados</strong>
+      <span>${getStores().length} loja(s) na nuvem${sync.noStores ? ' — ainda não há nenhuma.' : '.'}</span>
+      <div class="card-actions">
+        <button type="button" class="ghost" onclick="window.__saldarGerirLojas()">🏪 Gerir lojas</button>
+        ${sync.noStores ? '<button type="button" class="primary" onclick="window.__saldarCriarPrimeiraLoja()">➕ Criar primeira loja</button>' : ''}
+        <button type="button" class="ghost" onclick="window.__saldarMigrar()">⬆️ Enviar dados deste telemóvel para a nuvem</button>
+      </div>
+    </div>` : ''}
     <div class="item"><strong>Timeout de sessão</strong><span>${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s antes)</span></div>
     ${online ? diag : ''}
     <div class="item">
@@ -1944,87 +1999,546 @@ function fillProductForm(id) {
 }
 
 // =====================================================================
-// Cloud sync
+// NUVEM v43 — Firestore por documentos, listeners em tempo real, fila offline
+// =====================================================================
+// Modelo:  users/{uid} · stores/{id} · stores/{id}/{products|history|cash|clients|expenses}
+//          stores/{id}/meta/balances (contadores) · auditLog/{id} · config/{doc}
+// O estado em memória (state.products, state.history, ...) é alimentado pelos
+// listeners (onSnapshot). saveState() compara o estado com o último estado
+// sincronizado e envia só a diferença (stock em modo incremental).
+// Nada aqui espera pela confirmação do servidor → vendas funcionam offline e
+// ficam numa fila que o Firestore envia quando a ligação volta.
 // =====================================================================
 
-async function saveState() {
-  saveLocal();
-  if (!cloudMode() || !session.fbReady || !session.db || !session.api) return;
-  try {
-    const { doc, setDoc } = session.api;
+const COLS = ['products', 'history', 'cashMovements', 'clients', 'expenses'];
+const COL_PATH = { products: 'products', history: 'history', cashMovements: 'cash', clients: 'clients', expenses: 'expenses' };
+const HISTORY_DAYS = 90;
+const STORE_PREF_KEY = 'saldar-cloud-store';
+const ZERO_BAL = () => ({ vD: 0, vT: 0, vM: 0, cIn: 0, cOut: 0 });
 
-    // Snapshot dos aliases da loja ativa para garantir que o storesData fica coerente
-    const currentData = state.storesData?.[state.currentStoreId];
-    if (currentData) {
-      currentData.products = state.products;
-      currentData.history = state.history;
-      currentData.cashMovements = state.cashMovements;
-      currentData.clients = state.clients;
-      currentData.expenses = state.expenses;
-    }
+const sync = {
+  ready: false,
+  storeId: null,
+  loaded: {},
+  watch: {},
+  synced: {},          // col -> Map(id -> cópia do documento tal como está na nuvem)
+  unsubs: [],          // listeners da loja ativa
+  global: [],          // listeners da sessão (perfil, utilizadores, lojas, auditoria)
+  pending: 0,          // lotes de escrita ainda não confirmados pelo servidor
+  balances: ZERO_BAL(),
+  balancesOk: false,
+  noStores: false,
+  renderTimer: null,
+  profileSig: ''
+};
 
-    await setDoc(doc(session.db, 'appData', 'main'), {
-      stores: state.stores,
-      currentStoreId: state.currentStoreId,
-      storesData: state.storesData
+const nNum = (v) => Number(v) || 0;
+const cloneJSON = (o) => JSON.parse(JSON.stringify(o));
+const plainDoc = (o) => { const c = cloneJSON(o); delete c.id; return c; };
+const emptyStoreData = () => ({ products: [], history: [], cashMovements: [], clients: [], expenses: [] });
+
+function cloudEmptyState() {
+  return { stores: [], currentStoreId: null, storesData: {}, users: [], currentUserId: null, auditLog: [] };
+}
+
+function methodKey(method) {
+  const s = String(method || '').toLowerCase();
+  if (s.startsWith('transfer')) return 'vT';
+  if (s.startsWith('multi')) return 'vM';
+  return 'vD';
+}
+
+function withTimeout(promise, ms = 15000) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject({ code: 'app/timeout', message: 'Sem resposta do servidor (verifique a internet).' }), ms);
+    promise.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+// ---------- indicador de sincronização ----------
+function updateSyncBadge() {
+  const b = els.cloudTopBadge;
+  if (b) {
+    if (!cloudMode()) b.textContent = 'Local';
+    else if (!navigator.onLine) b.textContent = sync.pending ? `Offline • ${sync.pending} por enviar` : 'Offline';
+    else if (sync.pending) b.textContent = `A sincronizar (${sync.pending})`;
+    else if (session.currentUser && sync.storeId && !sync.ready) b.textContent = 'A carregar…';
+    else b.textContent = 'Firebase ✓';
+  }
+  try { updateConnectivityBadge(); } catch {}
+}
+
+// ---------- render com preservação do formulário de venda ----------
+function scheduleRender() {
+  if (sync.renderTimer) return;
+  sync.renderTimer = setTimeout(() => {
+    sync.renderTimer = null;
+    updateSyncBadge();
+    if (!session.currentUser || els.appShell?.classList.contains('hidden')) return;
+    const keep = ['saleProduct', 'saleQty', 'salePrice', 'saleMethod', 'stockProduct']
+      .map((k) => [els[k], els[k]?.value]);
+    renderAll();
+    keep.forEach(([el, v]) => {
+      if (!el || v === undefined || v === '' || el.value === v) return;
+      if (el.tagName === 'SELECT' && ![...el.options].some((o) => o.value === v)) return;
+      el.value = v;
     });
-  } catch (error) {
-    _origConsoleError('[saveState]', error);
-  }
+  }, 60);
 }
 
-async function fetchCloudUsers() {
-  if (!cloudMode() || !session.db || !session.api) return;
-  const { collection, getDocs } = session.api;
-  const snapshot = await getDocs(collection(session.db, 'users'));
-  session.cloudUsers = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-
-async function ensureCloudProfile(user) {
-  const { doc, getDoc, setDoc, collection, getDocs } = session.api;
-  const profileRef = doc(session.db, 'users', user.uid);
-  const profileSnap = await getDoc(profileRef);
-  if (profileSnap.exists()) return { id: user.uid, ...profileSnap.data() };
-
-  const usersSnap = await getDocs(collection(session.db, 'users'));
-  let role = 'operador';
-  if (usersSnap.empty) {
-    const adminEmails = String(settings.adminEmails || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-    if (adminEmails.length === 0) {
-      _origConsoleError('[SEGURANÇA] Nenhuma whitelist de admins. O primeiro registo será admin.');
-      role = 'admin';
-    } else if (adminEmails.includes(String(user.email || '').toLowerCase())) {
-      role = 'admin';
-    } else {
-      toast('O sistema já tem administrador. A sua conta será criada como operador.');
+// ---------- listeners ----------
+function listen(bucket, ref, onNext, label, withMeta = false) {
+  const un = session.api.onSnapshot(
+    ref,
+    withMeta ? { includeMetadataChanges: true } : {},
+    onNext,
+    (err) => {
+      _origConsoleError('[sync] erro em', label, err?.code, err?.message);
+      if (err?.code === 'permission-denied') toast(`Sem permissão para ler "${label}". Confirme que publicou as regras novas do Firestore.`, 9000);
     }
-  }
-  const profile = {
-    fullName: session.pendingName || user.email || 'Usuário online',
-    email: user.email,
-    role, active: true, createdAt: now()
-  };
-  await setDoc(profileRef, profile);
-  return { id: user.uid, ...profile };
+  );
+  bucket.push(un);
 }
 
-async function loadCloudState() {
-  const { doc, getDoc, setDoc } = session.api;
-  const appRef = doc(session.db, 'appData', 'main');
-  const snap = await getDoc(appRef);
+function stopListeners(bucket) {
+  while (bucket.length) { try { bucket.pop()(); } catch {} }
+}
 
-  if (snap.exists()) {
-    state = normalize({ ...state, ...snap.data(), currentUserId: state.currentUserId });
-    applyStoreAliases(state);
+function teardownCloud() {
+  stopListeners(sync.global);
+  stopListeners(sync.unsubs);
+  sync.ready = false; sync.storeId = null; sync.loaded = {}; sync.synced = {}; sync.watch = {};
+  sync.balances = ZERO_BAL(); sync.balancesOk = false; sync.noStores = false; sync.profileSig = '';
+  session.currentUser = null;
+  session.cloudUsers = [];
+  if (cloudMode()) { state = cloudEmptyState(); applyStoreAliases(state); }
+}
+
+function startCloudSession(profile) {
+  teardownCloud();
+  session.currentUser = profile;
+  const { doc, collection, query, orderBy, limit } = session.api;
+  const db = session.db;
+  const admin = profile.role === 'admin';
+  sync.profileSig = JSON.stringify([profile.role, profile.active !== false, profile.storeIds || []]);
+
+  // perfil próprio: se o admin mudar o papel/lojas ou desativar a conta, reage
+  listen(sync.global, doc(db, 'users', profile.id), (snap) => {
+    if (!snap.exists()) {
+      toast('O seu perfil foi removido. A terminar sessão.', 8000);
+      logout(true);
+      return;
+    }
+    const p = { id: profile.id, ...snap.data() };
+    if (p.active === false) { toast('A sua conta foi desativada.', 8000); logout(true); return; }
+    const sig = JSON.stringify([p.role, p.active !== false, p.storeIds || []]);
+    if (sig !== sync.profileSig) { toast('As suas permissões mudaram. A recarregar…'); setTimeout(() => location.reload(), 900); return; }
+    session.currentUser = p;
+    if (!admin) session.cloudUsers = [p];
+    scheduleRender();
+  }, 'o seu perfil');
+
+  if (admin) {
+    listen(sync.global, collection(db, 'users'), (snap) => {
+      session.cloudUsers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      scheduleRender();
+    }, 'utilizadores');
+    listen(sync.global, query(collection(db, 'auditLog'), orderBy('date', 'desc'), limit(300)), (snap) => {
+      state.auditLog = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      scheduleRender();
+    }, 'auditoria');
   } else {
-    await setDoc(appRef, {
-      stores: state.stores,
-      currentStoreId: state.currentStoreId,
-      storesData: state.storesData
+    session.cloudUsers = [profile];
+  }
+
+  // lojas: admin / operador sem restrição → coleção inteira; operador com lojas atribuídas → documento a documento
+  const restricted = !admin && Array.isArray(profile.storeIds) && profile.storeIds.length > 0;
+  if (!restricted) {
+    listen(sync.global, collection(db, 'stores'), (snap) => {
+      applyStores(snap.docs.map((d) => ({ id: d.id, ...d.data() })), snap.metadata.fromCache);
+    }, 'lojas', true);
+  } else {
+    const got = {};
+    profile.storeIds.forEach((id) => {
+      listen(sync.global, doc(db, 'stores', id), (snap) => {
+        if (snap.exists()) got[id] = { id, ...snap.data() }; else delete got[id];
+        applyStores(Object.values(got), snap.metadata.fromCache);
+      }, 'loja', true);
     });
   }
-  saveLocal();
+  updateSyncBadge();
 }
+
+function applyStores(list, fromCache) {
+  list.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  state.stores = list;
+  const ids = new Set(list.map((s) => s.id));
+  ids.forEach((id) => { if (!state.storesData[id]) state.storesData[id] = emptyStoreData(); });
+  Object.keys(state.storesData).forEach((id) => { if (!ids.has(id)) delete state.storesData[id]; });
+  sync.noStores = !fromCache && list.length === 0;
+
+  let want = state.currentStoreId;
+  if (!want || !ids.has(want)) {
+    let saved = null;
+    try { saved = localStorage.getItem(STORE_PREF_KEY); } catch {}
+    want = ids.has(saved) ? saved : (list[0]?.id || null);
+  }
+  state.currentStoreId = want;
+  if (want !== sync.storeId) startStoreListeners(want);
+  scheduleRender();
+}
+
+function startStoreListeners(sid) {
+  stopListeners(sync.unsubs);
+  sync.ready = false; sync.storeId = sid || null; sync.loaded = {}; sync.synced = {}; sync.watch = {};
+  sync.balances = ZERO_BAL(); sync.balancesOk = false;
+  if (!sid) { updateSyncBadge(); return; }
+
+  const user = session.currentUser;
+  const admin = user.role === 'admin';
+  const { collection, doc, query, where } = session.api;
+  const db = session.db;
+  if (!state.storesData[sid]) state.storesData[sid] = emptyStoreData();
+  const data = state.storesData[sid];
+  COLS.forEach((c) => { data[c] = []; });
+
+  sync.watch = { products: true, history: true, clients: true, cashMovements: admin, expenses: admin };
+  const cutoff = new Date(Date.now() - HISTORY_DAYS * 86400000).toISOString();
+
+  COLS.forEach((col) => {
+    if (!sync.watch[col]) { sync.loaded[col] = true; sync.synced[col] = new Map(); return; }
+    let ref = collection(db, 'stores', sid, COL_PATH[col]);
+    let keep = null;
+    if (col === 'history') {
+      if (admin) ref = query(ref, where('date', '>=', cutoff));
+      else { ref = query(ref, where('createdById', '==', user.id)); keep = (it) => String(it.date || '') >= cutoff; }
+    }
+    sync.loaded[col] = false;
+    listen(sync.unsubs, ref, (snap) => {
+      if (sid !== sync.storeId) return;
+      let items = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      if (keep) items = items.filter(keep);
+      if (col === 'products') {
+        items.sort((a, b) => (nNum(a.order ?? 1e9) - nNum(b.order ?? 1e9)) || String(a.name || '').localeCompare(String(b.name || '')));
+      } else {
+        items.sort((a, b) => String(a.date || a.createdAt || '').localeCompare(String(b.date || b.createdAt || '')));
+      }
+      if (state.storesData[sid]) state.storesData[sid][col] = items;
+      sync.synced[col] = new Map(items.map((it) => [it.id, cloneJSON(it)]));
+      sync.loaded[col] = true;
+      sync.ready = COLS.every((c) => sync.loaded[c]);
+      scheduleRender();
+    }, COL_PATH[col]);
+  });
+
+  if (admin) {
+    listen(sync.unsubs, doc(db, 'stores', sid, 'meta', 'balances'), (snap) => {
+      sync.balances = { ...ZERO_BAL(), ...(snap.exists() ? snap.data() : {}) };
+      sync.balancesOk = true;
+      scheduleRender();
+    }, 'saldos');
+  }
+  updateSyncBadge();
+}
+
+// ---------- escrita: diferença entre o estado e o que está na nuvem ----------
+function restoreCol(sid, col) {
+  const base = sync.synced[col];
+  if (!base || !state.storesData[sid]) return;
+  state.storesData[sid][col] = [...base.values()].map(cloneJSON);
+}
+
+function onWriteError(err) {
+  _origConsoleError('[sync] escrita recusada/falhou:', err?.code, err?.message);
+  if (err?.code === 'permission-denied') {
+    toast('❌ O servidor recusou a operação (sem permissão ou stock insuficiente). Os dados foram repostos.', 10000);
+  } else if (err?.code === 'failed-precondition' || err?.code === 'not-found') {
+    toast('❌ Operação recusada: o registo já não existe ou mudou noutro telemóvel. Dados repostos.', 10000);
+  } else {
+    toast('⚠️ Erro de sincronização: ' + (err?.code || err?.message || 'desconhecido'), 8000);
+  }
+}
+
+function commitTracked(batch) {
+  sync.pending++;
+  updateSyncBadge();
+  batch.commit()
+    .then(() => { sync.pending = Math.max(0, sync.pending - 1); updateSyncBadge(); })
+    .catch((err) => { sync.pending = Math.max(0, sync.pending - 1); updateSyncBadge(); onWriteError(err); scheduleRender(); });
+}
+
+function flushDiff() {
+  const sid = state.currentStoreId;
+  if (!sid || sid !== sync.storeId || !sync.ready) return false;
+  const data = state.storesData[sid];
+  if (!data) return false;
+  const { writeBatch, doc, increment, deleteField } = session.api;
+  const db = session.db;
+  const ops = [];
+  const bal = ZERO_BAL();
+
+  for (const col of COLS) {
+    if (!sync.watch[col]) continue;
+    const base = sync.synced[col] || new Map();
+    const cur = Array.isArray(data[col]) ? data[col] : [];
+    const curIds = new Set(cur.map((i) => i.id));
+
+    let removed = 0;
+    base.forEach((_, id) => { if (!curIds.has(id)) removed++; });
+    if (removed > 0 && (col === 'history' || col === 'cashMovements')) {
+      restoreCol(sid, col);
+      toast('Vendas e movimentos de caixa não podem ser apagados.', 6000);
+      continue;
+    }
+    if (removed > 20 && removed > base.size / 2) {
+      restoreCol(sid, col);
+      toast('⚠️ Operação bloqueada: tentava apagar muitos registos de uma vez.', 10000);
+      continue;
+    }
+
+    for (const item of cur) {
+      if (!item || !item.id) continue;
+      const prev = base.get(item.id);
+      if (!prev) {
+        ops.push({ t: 'set', col, id: item.id, data: plainDoc(item) });
+        if (col === 'history' && item.type === 'venda') bal[methodKey(item.paymentMethod)] += nNum(item.total);
+        if (col === 'cashMovements') { if (item.kind === 'entrada') bal.cIn += nNum(item.amount); else bal.cOut += nNum(item.amount); }
+        continue;
+      }
+      const upd = {};
+      let any = false;
+      const keys = new Set([...Object.keys(item), ...Object.keys(prev)]);
+      keys.delete('id');
+      for (const k of keys) {
+        if (col === 'products' && k === 'stock') {
+          const d = nNum(item.stock) - nNum(prev.stock);
+          if (d !== 0) { upd.stock = increment(d); any = true; }
+          continue;
+        }
+        if (JSON.stringify(item[k]) !== JSON.stringify(prev[k])) {
+          upd[k] = item[k] === undefined ? deleteField() : item[k];
+          any = true;
+        }
+      }
+      if (any) {
+        if (col === 'history' || col === 'cashMovements') {
+          // registos imutáveis: repõe e avisa
+          restoreCol(sid, col);
+          toast('Vendas e movimentos de caixa não podem ser editados.', 6000);
+          continue;
+        }
+        ops.push({ t: 'update', col, id: item.id, data: upd });
+      }
+    }
+    base.forEach((_, id) => { if (!curIds.has(id)) ops.push({ t: 'delete', col, id }); });
+  }
+
+  if (Object.values(bal).some((v) => v !== 0)) ops.push({ t: 'bal', data: bal });
+  if (!ops.length) return true;
+
+  const BATCH = 450;
+  for (let i = 0; i < ops.length; i += BATCH) {
+    const batch = writeBatch(db);
+    ops.slice(i, i + BATCH).forEach((op) => {
+      if (op.t === 'bal') {
+        const upd = {};
+        Object.entries(op.data).forEach(([k, v]) => { if (v !== 0) upd[k] = increment(v); });
+        batch.set(doc(db, 'stores', sid, 'meta', 'balances'), upd, { merge: true });
+        return;
+      }
+      const ref = doc(db, 'stores', sid, COL_PATH[op.col], op.id);
+      if (op.t === 'set') batch.set(ref, op.data);
+      else if (op.t === 'update') batch.update(ref, op.data);
+      else batch.delete(ref);
+    });
+    commitTracked(batch);
+  }
+
+  // otimista: a nuvem passa a ser (localmente) igual ao estado atual
+  COLS.forEach((col) => {
+    if (!sync.watch[col]) return;
+    sync.synced[col] = new Map((data[col] || []).filter((i) => i && i.id).map((it) => [it.id, cloneJSON(it)]));
+  });
+  return true;
+}
+
+async function saveState() {
+  if (!cloudMode()) { saveLocal(); return; }
+  if (!session.fbReady || !session.db || !session.api) return;
+  if (!sync.ready) { toast('A sincronizar dados… tente novamente dentro de instantes.'); return; }
+  try { flushDiff(); }
+  catch (error) { _origConsoleError('[saveState]', error); toast('Erro ao enviar para a nuvem: ' + (error?.message || error)); }
+}
+
+// ---------- saldos (3 contas de caixa) ----------
+function getBalances() {
+  let b;
+  let ready = true;
+  if (cloudMode()) { b = { ...ZERO_BAL(), ...sync.balances }; ready = sync.balancesOk; }
+  else {
+    b = ZERO_BAL();
+    state.history.forEach((h) => { if (h.type === 'venda') b[methodKey(h.paymentMethod)] += nNum(h.total); });
+    state.cashMovements.forEach((m) => { if (m.kind === 'entrada') b.cIn += nNum(m.amount); else b.cOut += nNum(m.amount); });
+  }
+  return {
+    ready,
+    vD: b.vD, vT: b.vT, vM: b.vM, cIn: b.cIn, cOut: b.cOut,
+    dinheiro: b.vD + b.cIn - b.cOut,
+    transferencia: b.vT,
+    multicaixa: b.vM,
+    totalVendido: b.vD + b.vT + b.vM
+  };
+}
+
+// ---------- perfil / criação de utilizadores ----------
+async function loadOrCreateProfile(user) {
+  const { doc, getDoc, setDoc } = session.api;
+  const ref = doc(session.db, 'users', user.uid);
+  const snap = await withTimeout(getDoc(ref), 20000);
+  if (snap.exists()) {
+    const p = { id: user.uid, ...snap.data() };
+    if (p.active === false) { toast('Esta conta está desativada. Fale com o administrador.', 9000); return null; }
+    return p;
+  }
+  if (!user.emailVerified) {
+    toast('Confirme o seu e-mail (link enviado para a caixa de entrada) e volte a entrar. Se for um operador, peça ao administrador para criar a sua conta.', 12000);
+    return null;
+  }
+  const adminEmails = String(settings.adminEmails || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (adminEmails.includes(String(user.email || '').toLowerCase())) {
+    const profile = {
+      fullName: session.pendingName || user.email, email: user.email,
+      role: 'admin', active: true, createdAt: now()
+    };
+    try {
+      await withTimeout(setDoc(ref, profile), 20000);
+      return { id: user.uid, ...profile };
+    } catch (err) {
+      _origConsoleError('[perfil admin]', err);
+      toast('Não foi possível criar o perfil de administrador (as regras do Firestore só o permitem ao e-mail dono). ' + (err?.code || ''), 12000);
+      return null;
+    }
+  }
+  toast('Sem acesso: esta conta ainda não tem perfil. Peça ao administrador para a criar.', 10000);
+  return null;
+}
+
+// Cria a conta de login numa app Firebase secundária → a sessão do admin não é afetada.
+async function createAuthUserViaSecondary(email, password) {
+  const { initializeApp, getApps, getAuth, createUserWithEmailAndPassword, signOut } = session.api;
+  const cfg = parseFirebaseConfig();
+  const secondary = getApps().find((a) => a.name === 'saldar-secondary') || initializeApp(cfg, 'saldar-secondary');
+  const secAuth = getAuth(secondary);
+  try {
+    const cred = await withTimeout(createUserWithEmailAndPassword(secAuth, email, password), 20000);
+    return cred.user.uid;
+  } finally {
+    try { await signOut(secAuth); } catch {}
+  }
+}
+
+// Mantido por compatibilidade: a lista de utilizadores é atualizada pelo listener.
+async function fetchCloudUsers() { /* listener em tempo real */ }
+
+// ---------- migração: dados locais deste telemóvel → nuvem ----------
+function readLocalForMigration() {
+  const keys = [LOCAL_KEY, ...LEGACY_KEYS];
+  for (const k of keys) {
+    const raw = localStorage.getItem(k);
+    if (!raw) continue;
+    try { return normalize(JSON.parse(raw)); } catch { /* tenta o seguinte */ }
+  }
+  return null;
+}
+
+async function migrateLocalToCloud() {
+  if (!cloudMode() || !isAdmin()) return toast('Só o administrador, em modo nuvem, pode enviar os dados.');
+  if (!navigator.onLine) return toast('Precisa de internet para enviar os dados.');
+  const local = readLocalForMigration();
+  if (!local) return appAlert('Este telemóvel não tem dados locais guardados.', 'Nada para enviar', 'ℹ️');
+
+  const { doc, getDoc, setDoc, writeBatch } = session.api;
+  const db = session.db;
+  let marker;
+  try { marker = await withTimeout(getDoc(doc(db, 'config', 'migration')), 15000); }
+  catch (err) { return toast('Não consegui verificar a nuvem: ' + (err?.code || err?.message)); }
+  if (marker.exists()) {
+    const at = marker.data()?.at ? new Date(marker.data().at).toLocaleString('pt-PT') : '—';
+    return appAlert(`Já foi feito um envio de dados em ${at}.\n\nPara não duplicar saldos, não é possível repetir.`, 'Já enviado', 'ℹ️');
+  }
+
+  const stores = local.stores || [];
+  let nProd = 0, nHist = 0, nCash = 0, nCli = 0, nExp = 0;
+  stores.forEach((s) => {
+    const d = local.storesData[s.id] || emptyStoreData();
+    nProd += (d.products || []).length; nHist += (d.history || []).length; nCash += (d.cashMovements || []).length;
+    nCli += (d.clients || []).length; nExp += (d.expenses || []).length;
+  });
+  const ok = await appConfirm(
+    `Enviar para a nuvem os dados guardados neste telemóvel?\n\n${stores.length} loja(s) • ${nProd} produtos • ${nHist} vendas/entradas de stock • ${nCash} movimentos de caixa • ${nCli} clientes • ${nExp} despesas.\n\nFaça isto UMA só vez, no telemóvel que tem os dados corretos. Os dados locais ficam guardados aqui.`,
+    'Enviar para a nuvem', '☁️'
+  );
+  if (!ok) return;
+
+  const writes = [];
+  stores.forEach((s) => {
+    const d = local.storesData[s.id] || emptyStoreData();
+    writes.push({ path: ['stores', s.id], data: { name: s.name, createdAt: s.createdAt || now() } });
+    (d.products || []).forEach((p, i) => writes.push({ path: ['stores', s.id, 'products', p.id], data: { ...plainDoc(p), order: i } }));
+    (d.history || []).forEach((h) => writes.push({ path: ['stores', s.id, 'history', h.id], data: plainDoc(h) }));
+    (d.cashMovements || []).forEach((m) => writes.push({ path: ['stores', s.id, 'cash', m.id], data: plainDoc(m) }));
+    (d.clients || []).forEach((c) => writes.push({ path: ['stores', s.id, 'clients', c.id], data: plainDoc(c) }));
+    (d.expenses || []).forEach((x) => writes.push({ path: ['stores', s.id, 'expenses', x.id], data: plainDoc(x) }));
+    const b = ZERO_BAL();
+    (d.history || []).forEach((h) => { if (h.type === 'venda') b[methodKey(h.paymentMethod)] += nNum(h.total); });
+    (d.cashMovements || []).forEach((m) => { if (m.kind === 'entrada') b.cIn += nNum(m.amount); else b.cOut += nNum(m.amount); });
+    writes.push({ path: ['stores', s.id, 'meta', 'balances'], data: b });
+  });
+
+  let done = 0, skipped = 0;
+  const CH = 400;
+  for (let i = 0; i < writes.length; i += CH) {
+    const chunk = writes.slice(i, i + CH);
+    try {
+      const batch = writeBatch(db);
+      chunk.forEach((w) => batch.set(doc(db, ...w.path), w.data));
+      await withTimeout(batch.commit(), 60000);
+      done += chunk.length;
+    } catch (err) {
+      _origConsoleError('[migração] lote falhou, a tentar um a um:', err);
+      for (const w of chunk) {
+        try { await withTimeout(setDoc(doc(db, ...w.path), w.data), 20000); done++; }
+        catch { skipped++; }
+      }
+    }
+    toast(`A enviar… ${Math.min(i + CH, writes.length)}/${writes.length}`, 2500);
+  }
+
+  try {
+    await withTimeout(setDoc(doc(db, 'config', 'migration'), {
+      at: now(), by: session.currentUser.id,
+      counts: { stores: stores.length, products: nProd, history: nHist, cash: nCash, clients: nCli, expenses: nExp },
+      skipped
+    }), 20000);
+  } catch (err) { _origConsoleError('[migração] marcador', err); }
+
+  logAudit('migracao-nuvem', { stores: stores.length, products: nProd, history: nHist, cash: nCash, clients: nCli, expenses: nExp, skipped });
+  await appAlert(
+    skipped
+      ? `Envio concluído com avisos: ${done} registos enviados, ${skipped} não foram aceites. Veja a consola.`
+      : `Envio concluído: ${done} registos na nuvem.\n\nOs outros telemóveis já os veem ao entrar.`,
+    'Migração', skipped ? '⚠️' : '✅'
+  );
+}
+
+window.__saldarMigrar = () => { migrateLocalToCloud().catch((e) => toast('Erro na migração: ' + (e?.code || e?.message || e))); };
+window.__saldarGerirLojas = () => { openStoreManageModal(); };
+window.__saldarCriarPrimeiraLoja = async () => {
+  const name = prompt('Nome da primeira loja:', 'Loja Principal');
+  if (!name || !name.trim()) return;
+  const s = createStore(name.trim());
+  if (s) toast(`Loja "${s.name}" criada.`);
+};
 
 // =====================================================================
 // Firebase init
@@ -2040,66 +2554,77 @@ async function initFirebase() {
     return;
   }
   if (!cfg.apiKey || !cfg.projectId || !cfg.appId) {
-    const faltam = ['apiKey', 'projectId', 'appId'].filter(k => !cfg[k]);
+    const faltam = ['apiKey', 'projectId', 'appId'].filter((k) => !cfg[k]);
     session.lastAuthError = { code: 'config/missing-keys', message: 'Faltam: ' + faltam.join(', ') };
     return;
   }
 
   try {
-    const appModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-    const authModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-    const firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
+    const V = '10.12.5';
+    const appModule = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+    const authModule = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+    const fs = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
 
     const { initializeApp, getApps } = appModule;
     const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification } = authModule;
-    const { getFirestore, doc, setDoc, getDoc, collection, getDocs, enableIndexedDbPersistence, deleteDoc } = firestoreModule;
 
-    session.api = { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
+    session.api = {
+      initializeApp, getApps, getAuth,
+      signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification,
+      doc: fs.doc, setDoc: fs.setDoc, getDoc: fs.getDoc, updateDoc: fs.updateDoc, deleteDoc: fs.deleteDoc,
+      collection: fs.collection, getDocs: fs.getDocs, onSnapshot: fs.onSnapshot,
+      query: fs.query, where: fs.where, orderBy: fs.orderBy, limit: fs.limit,
+      writeBatch: fs.writeBatch, increment: fs.increment, deleteField: fs.deleteField,
+      waitForPendingWrites: fs.waitForPendingWrites
+    };
 
     const existing = getApps().find((app) => app.name === 'saldar-servicos-v5');
     session.app = existing || initializeApp(cfg, 'saldar-servicos-v5');
     session.auth = getAuth(session.app);
-    session.db = getFirestore(session.app);
-
-    try { await enableIndexedDbPersistence(session.db); }
-    catch (err) { _origConsoleError('[initFirebase] Persistência:', err); }
+    try {
+      // cache em disco (IndexedDB): é isto que permite vender sem internet
+      session.db = fs.initializeFirestore(session.app, {
+        localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() })
+      });
+    } catch (err) {
+      _origConsoleError('[initFirebase] cache persistente indisponível, a usar a predefinida:', err?.message);
+      session.db = fs.getFirestore(session.app);
+    }
 
     session.fbReady = true;
 
     if (typeof session.unsubAuth === 'function') session.unsubAuth();
     session.unsubAuth = onAuthStateChanged(session.auth, async (user) => {
       if (!user) {
-        session.currentUser = null;
-        session.cloudUsers = [];
+        teardownCloud();
         showApp(false);
+        updateSyncBadge();
         return;
       }
+      if (session.currentUser?.id === user.uid && sync.global.length) return; // já iniciado
       session.lastAuthError = null;
-
-      if (user.email && user.emailVerified === false && user.providerData?.[0]?.providerId === 'password') {
-        const ageMs = Date.now() - new Date(user.metadata.creationTime).getTime();
-        if (ageMs > 60 * 1000) {
-          toast('Confirme o seu email antes de entrar.');
+      try {
+        const profile = await loadOrCreateProfile(user);
+        if (!profile) {
           try { await session.api.signOut(session.auth); } catch {}
-          session.currentUser = null;
+          teardownCloud();
           showApp(false);
           return;
         }
-      }
-
-      try {
-        const profile = await ensureCloudProfile(user);
-        session.currentUser = profile;
-        await fetchCloudUsers();
-        await loadCloudState();
+        startCloudSession(profile);
         showApp(true);
         toast(`Sessão online iniciada para ${profile.fullName || profile.email}.`);
         session.pendingName = '';
-        await logAudit('login', { email: profile.email, mode: 'online' });
+        logAudit('login', { email: profile.email, mode: 'online' });
       } catch (err) {
-        _origConsoleError('[onAuthStateChanged] Erro ao carregar perfil/dados:', err);
-        session.lastAuthError = { code: err.code || 'profile/error', message: err.message || String(err) };
-        toast('Erro ao carregar perfil: ' + (err.message || err.code || 'desconhecido'));
+        _origConsoleError('[onAuthStateChanged] Erro ao carregar perfil:', err);
+        session.lastAuthError = { code: err?.code || 'profile/error', message: err?.message || String(err) };
+        const offline = err?.code === 'unavailable' || err?.code === 'app/timeout';
+        toast(offline
+          ? 'Sem ligação à nuvem. Ligue-se à internet para entrar.'
+          : 'Erro ao carregar perfil: ' + (err?.message || err?.code || 'desconhecido'), 9000);
+        teardownCloud();
+        showApp(false);
       }
     });
   } catch (error) {
@@ -2113,15 +2638,27 @@ async function initFirebase() {
 // Logout
 // =====================================================================
 
-async function logout() {
-  try { await logAudit('logout', {}); } catch {}
-
+async function logout(force = false) {
   if (cloudMode() && session.api && session.auth) {
-    await session.api.signOut(session.auth);
-    session.currentUser = null;
+    logAudit('logout', {});
+    if (sync.pending > 0 && !force) {
+      if (navigator.onLine) {
+        try { await withTimeout(session.api.waitForPendingWrites(session.db), 8000); } catch {}
+      }
+      if (sync.pending > 0) {
+        const ok = await appConfirm(
+          `Há ${sync.pending} operação(ões) por enviar para a nuvem (sem internet).\n\nSe sair agora, podem perder-se. Sair mesmo assim?`,
+          'Dados por enviar', '⚠️'
+        );
+        if (!ok) return false;
+      }
+    }
+    try { await session.api.signOut(session.auth); } catch (e) { _origConsoleError('[logout]', e); }
+    teardownCloud();
     showApp(false);
     return;
   }
+  try { await logAudit('logout', {}); } catch {}
   state.currentUserId = null;
   session.currentUser = null;
   saveLocal();
@@ -2608,6 +3145,7 @@ function downloadBackup() {
 }
 
 async function importBackupFile(file) {
+  if (cloudMode()) return toast('No modo nuvem o restauro de backup está desativado. Para trazer dados antigos use "Enviar dados deste telemóvel para a nuvem".', 9000);
   if (!file) return toast('Selecione um arquivo de backup.');
   let parsed;
   try { parsed = JSON.parse(await file.text()); } catch { return toast('Arquivo JSON inválido.'); }
@@ -2690,20 +3228,9 @@ els.saveCloudConfigBtn?.addEventListener('click', async () => {
   settings.firebaseConfig = els.firebaseConfigInput.value.trim();
   settings.adminEmails = (els.adminEmailsInput?.value || '').trim();
   saveSettings();
-  markMode();
-  switchAuthView('login');
-  updateConnectivityBadge();
-
-  if (cloudMode()) {
-    await initFirebase();
-    showApp(false);
-    if (session.fbReady) toast('Modo online configurado. Faça login com email.');
-    else toast('Configuração salva, mas Firebase não inicializou. Vê a consola.', 15000);
-  } else {
-    session.currentUser = state.users.find((u) => u.id === state.currentUserId) || null;
-    showApp(Boolean(session.currentUser));
-    toast('Modo local ativado.');
-  }
+  toast('Configuração guardada. A recarregar a app…', 3000);
+  // recarrega para arrancar limpo no modo escolhido (nuvem ou local)
+  setTimeout(() => location.reload(), 700);
 });
 
 els.switchAuthModeBtn?.addEventListener('click', () => {
@@ -2884,7 +3411,8 @@ els.resendVerifyLink?.addEventListener('click', async () => {
 });
 
 els.logoutBtn?.addEventListener('click', async () => {
-  await logout();
+  const r = await logout();
+  if (r === false) return;
   toast('Sessão terminada com sucesso.');
 });
 
@@ -2930,7 +3458,8 @@ priceVip: Number(els.productPriceVip?.value || 0)
     return;
   }
 
-  state.products.push({ id: uid(), ...payload });
+  const nextOrder = state.products.reduce((m, p) => Math.max(m, Number(p.order ?? -1)), -1) + 1;
+  state.products.push({ id: uid(), order: nextOrder, ...payload });
   await saveState();
   await logAudit('produto-criar', {
     name: payload.name,
@@ -3184,6 +3713,10 @@ async function finalizeSaleInner() {
 
   const user = getCurrentUser();
   if (!user) return;
+  if (cloudMode() && !sync.ready) {
+    toast('A carregar os dados da loja… aguarde um instante e tente de novo.');
+    return;
+  }
 
   const paymentMethod = els.saleMethod?.value || 'dinheiro';
 const note = els.saleNote?.value.trim() || '';
@@ -3542,20 +4075,17 @@ els.userForm?.addEventListener('submit', async (e) => {
     const user = userSource.find(u => u.id === editingId);
     if (!user) return toast('Usuário não encontrado.');
 
-    user.fullName = fullName;
-    user.role = role;
-    user.commission = commission;
-    user.storeIds = storeIds;
-
     if (cloudMode()) {
-      user.email = emailOrUsername;
+      if (editingId === getCurrentUser()?.id && role !== 'admin') return toast('Não pode retirar o papel de administrador a si próprio.');
       try {
-        const { doc, setDoc } = session.api;
-        await setDoc(doc(session.db, 'users', user.id), user, { merge: true });
-        await fetchCloudUsers();
-        saveLocal();
-      } catch { return toast('Erro ao atualizar usuário na nuvem.'); }
+        const { doc, updateDoc } = session.api;
+        await withTimeout(updateDoc(doc(session.db, 'users', editingId), { fullName, role, commission, storeIds }), 15000);
+      } catch (err) { return toast('Erro ao atualizar usuário na nuvem: ' + (err?.code || err?.message || '')); }
     } else {
+      user.fullName = fullName;
+      user.role = role;
+      user.commission = commission;
+      user.storeIds = storeIds;
       user.username = emailOrUsername;
       if (password) user.password = await hashPassword(password);
       saveLocal();
@@ -3576,14 +4106,15 @@ els.userForm?.addEventListener('submit', async (e) => {
   if (!password) return toast('A palavra-passe é obrigatória para criar um novo usuário.');
 
   if (cloudMode()) {
+    if (!navigator.onLine) return toast('Precisa de internet para criar utilizadores.');
+    if (password.length < 6) return toast('A palavra-passe precisa de pelo menos 6 caracteres.');
     try {
-      const userCredential = await session.api.createUserWithEmailAndPassword(session.auth, emailOrUsername, password);
-      const uid2 = userCredential.user.uid;
+      // conta criada numa app secundária → a sessão do administrador continua ativa
+      const uid2 = await createAuthUserViaSecondary(emailOrUsername, password);
       const { doc, setDoc } = session.api;
-      await setDoc(doc(session.db, 'users', uid2), {
+      await withTimeout(setDoc(doc(session.db, 'users', uid2), {
         fullName, email: emailOrUsername, role, commission, storeIds, active: true, createdAt: now()
-      });
-      await fetchCloudUsers();
+      }), 15000);
 
       await logAudit('user-criar', {
         userId: uid2,
@@ -3643,14 +4174,14 @@ els.userList?.addEventListener('click', async (e) => {
     if (current?.id === user.id && user.active !== false) return toast('Não pode desativar o seu próprio utilizador.');
     if (user.role === 'admin' && user.active !== false && userSource.filter(u => u.role === 'admin' && u.active !== false).length <= 1) return toast('Tem de existir pelo menos um administrador ativo.');
 
-    user.active = !(user.active !== false);
+    const nextActive = !(user.active !== false);
     if (cloudMode()) {
       try {
-        const { doc, setDoc } = session.api;
-        await setDoc(doc(session.db, 'users', user.id), user, { merge: true });
-        await fetchCloudUsers();
-      } catch { return toast('Erro ao atualizar utilizador na nuvem.'); }
-    } else { saveLocal(); }
+        const { doc, updateDoc } = session.api;
+        await withTimeout(updateDoc(doc(session.db, 'users', user.id), { active: nextActive }), 15000);
+      } catch (err) { return toast('Erro ao atualizar utilizador na nuvem: ' + (err?.code || '')); }
+      user.active = nextActive;
+    } else { user.active = nextActive; saveLocal(); }
 
     await logAudit('user-toggle', { userId: id, active: user.active });
 
@@ -3670,14 +4201,12 @@ if (!ok) return;
     if (cloudMode()) {
       try {
         const { deleteDoc, doc } = session.api;
-        await deleteDoc(doc(session.db, 'users', id));
-        await fetchCloudUsers();
-        saveLocal();
+        await withTimeout(deleteDoc(doc(session.db, 'users', id)), 15000);
 
         await logAudit('user-remover', { userId: id, mode: 'online' });
 
         renderAll();
-        toast('Usuário removido da nuvem.');
+        toast('Perfil removido: já não consegue entrar. (A conta de login fica no Firebase › Authentication.)', 7000);
       } catch { return toast('Erro ao remover da nuvem.'); }
     } else {
       state.users = state.users.filter(u => u.id !== id);
@@ -5141,7 +5670,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v42...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
