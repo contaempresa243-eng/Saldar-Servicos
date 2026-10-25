@@ -817,8 +817,8 @@
             <label>Nome
               <input type="text" id="appNameInput" maxlength="40" placeholder="Saldar Serviços" />
             </label>
-            <button type="button" class="primary" id="saveAppNameBtn">Guardar nome</button>
-            <button type="button" class="ghost" id="resetAppNameBtn">Repor nome original</button>
+            <button type="button" class="primary" id="saveAppNameBtn" onclick="window.__saldarGuardarNome()">Guardar nome</button>
+            <button type="button" class="ghost" id="resetAppNameBtn" onclick="window.__saldarReporNome()">Repor nome original</button>
           </div>
           <p class="mini-text">O nome do ícone no ecrã inicial vem do ficheiro <strong>manifest.json</strong> e só muda editando esse ficheiro.</p>
         </div>

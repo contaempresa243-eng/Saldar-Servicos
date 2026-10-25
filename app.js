@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v43)
+// SALDAR SERVIÇOS — app.js (v43.3)
 // =====================================================================
 
 // ============================================================
@@ -282,6 +282,17 @@ const saveLocal = () => {
 };
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
+const APP_BUILD = 'v43.3';
+const DEFAULT_APP_NAME = 'Saldar Serviços';
+const appName = () => String(settings.appName || '').trim() || DEFAULT_APP_NAME;
+function applyBranding() {
+  const n = appName();
+  document.querySelectorAll('[data-app-name]').forEach((el) => {
+    el.textContent = el.dataset.appName === 'upper' ? n.toUpperCase() : n;
+  });
+  document.title = n;
+  if (els.appNameInput && document.activeElement !== els.appNameInput) els.appNameInput.value = settings.appName || '';
+}
 const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Operador';
 const byId = (id) => state.products.find((p) => p.id === id);
 const getCurrentUser = () => cloudMode() ? session.currentUser : (state.users.find((u) => u.id === state.currentUserId) || null);
@@ -463,8 +474,11 @@ const els = {
   firebaseConfigInput: document.getElementById('firebaseConfigInput'),
   adminEmailsInput: document.getElementById('adminEmailsInput'),
   saveCloudConfigBtn: document.getElementById('saveCloudConfigBtn'),
+  saveAppNameBtn: document.getElementById('saveAppNameBtn'),
+  resetAppNameBtn: document.getElementById('resetAppNameBtn'),
   cloudStatusText: document.getElementById('cloudStatusText'),
   cloudTopBadge: document.getElementById('cloudTopBadge'),
+  appNameInput: document.getElementById('appNameInput'),
   logoutBtn: document.getElementById('logoutBtn'),
   currentUserName: document.getElementById('currentUserName'),
   currentUserRole: document.getElementById('currentUserRole'),
@@ -1847,6 +1861,7 @@ function renderCloudPanel() {
         <button type="button" class="ghost" onclick="window.__saldarMigrar()">⬆️ Enviar dados deste telemóvel para a nuvem</button>
       </div>
     </div>` : ''}
+    <div class="item"><strong>Versão do app.js</strong><span>${APP_BUILD}</span></div>
     <div class="item"><strong>Timeout de sessão</strong><span>${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s antes)</span></div>
     ${online ? diag : ''}
     <div class="item">
@@ -2137,6 +2152,13 @@ function startCloudSession(profile) {
     if (!admin) session.cloudUsers = [p];
     scheduleRender();
   }, 'o seu perfil');
+
+  // nome da aplicação (partilhado por todos os telemóveis)
+  listen(sync.global, doc(db, 'config', 'branding'), (snap) => {
+    const n = snap.exists() ? String(snap.data().name || '').trim() : '';
+    if (n !== String(settings.appName || '')) { settings.appName = n; saveSettings(); }
+    applyBranding();
+  }, 'nome da aplicação');
 
   if (admin) {
     listen(sync.global, collection(db, 'users'), (snap) => {
@@ -4817,12 +4839,12 @@ els.exportPdfBtn?.addEventListener('click', () => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text('SS', marginX + 8, cursorY + 3, { align: 'center' });
+  doc.text(appName().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || 'SS', marginX + 8, cursorY + 3, { align: 'center' });
 
   // Nome + slogan
   doc.setTextColor(15, 118, 110);
   doc.setFontSize(16);
-  doc.text('SALDAR SERVIÇOS', marginX + 22, cursorY - 2);
+  doc.text(appName().toUpperCase(), marginX + 22, cursorY - 2);
 
   doc.setFontSize(9);
   doc.setFont(undefined, 'italic');
@@ -5053,7 +5075,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
     doc.setTextColor(150, 150, 150);
     doc.setFont(undefined, 'italic');
     doc.text(
-      `© ${new Date().getFullYear()} Saldar Serviços — Gestão e controle`,
+      `© ${new Date().getFullYear()} ${appName()} — Gestão e controle`,
       marginX,
       pageHeight - 8
     );
@@ -5101,7 +5123,7 @@ window.imprimirRecibo = function(saleId) {
 
   els.receiptContent.innerHTML = `
     <div class="receipt-box">
-      <h2>SALDAR SERVIÇOS</h2>
+      <h2>${esc(appName().toUpperCase())}</h2>
       <p class="receipt-slogan">Gestão simples, resultados reais.</p>
       <hr>
       <div class="receipt-meta">
@@ -5126,7 +5148,7 @@ window.imprimirRecibo = function(saleId) {
       </div>
       <hr>
       <p class="receipt-footer">Obrigado pela preferência!</p>
-      <p class="receipt-footer">©2026 Saldar Serviços</p>
+      <p class="receipt-footer">©${new Date().getFullYear()} ${esc(appName())}</p>
     </div>
   `;
 
@@ -5136,7 +5158,7 @@ window.imprimirRecibo = function(saleId) {
     const newBtn = waBtn.cloneNode(true);
     waBtn.parentNode.replaceChild(newBtn, waBtn);
     newBtn.addEventListener('click', () => {
-      let text = `*SALDAR SERVIÇOS*\n`;
+      let text = `*${appName().toUpperCase()}*\n`;
       text += `Gestão simples, resultados reais.\n\n`;
       text += `Data: ${date}\n`;
       text += `Operador: ${sale.createdByName || 'Sistema'}\n`;
@@ -5645,6 +5667,36 @@ els.storeManageList?.addEventListener('click', async (e) => {
 });
 
 // =====================================================================
+// Nome da aplicação (marca)
+// =====================================================================
+
+async function saveAppName(name) {
+  if (!requireAdmin()) return;
+  const clean = String(name || '').trim().slice(0, 40);
+  settings.appName = clean;
+  saveSettings();
+  applyBranding();
+  if (cloudMode() && session.db && session.api) {
+    try {
+      const { doc, setDoc } = session.api;
+      await withTimeout(setDoc(doc(session.db, 'config', 'branding'), { name: clean, updatedAt: now() }), 15000);
+    } catch (err) {
+      return toast('Nome guardado só neste telemóvel (erro na nuvem: ' + (err?.code || err?.message || '') + ').', 8000);
+    }
+  }
+  logAudit('nome-app', { name: clean || DEFAULT_APP_NAME });
+  toast(clean ? `Nome alterado para "${clean}".` : 'Nome original reposto.');
+}
+
+window.__saldarGuardarNome = () => {
+  const input = document.getElementById('appNameInput');
+  const v = (input?.value || '').trim();
+  if (!v) return toast('Escreva o novo nome da aplicação.');
+  saveAppName(v);
+};
+window.__saldarReporNome = () => { saveAppName(''); };
+
+// =====================================================================
 // PWA install
 // =====================================================================
 
@@ -5672,7 +5724,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v43...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43.3...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
@@ -5685,6 +5737,7 @@ if (cloudMode() && els.authShell) {
   if (els.firebaseConfigInput) els.firebaseConfigInput.value = settings.firebaseConfig || '';
   if (els.adminEmailsInput) els.adminEmailsInput.value = settings.adminEmails || '';
   markMode();
+  applyBranding();
   updateConnectivityBadge();
   switchAuthView('login');
   // Patch 18: data default no form de despesas
