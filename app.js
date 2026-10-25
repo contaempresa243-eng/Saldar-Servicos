@@ -2394,6 +2394,8 @@ function getBalances() {
 async function loadOrCreateProfile(user) {
   const { doc, getDoc, setDoc } = session.api;
   const ref = doc(session.db, 'users', user.uid);
+  // renova a sessão: o token guardado pode ainda dizer "e-mail não verificado"
+  try { await user.reload(); await user.getIdToken(true); } catch (e) { _origConsoleError('[perfil] reload', e?.code); }
   const snap = await withTimeout(getDoc(ref), 20000);
   if (snap.exists()) {
     const p = { id: user.uid, ...snap.data() };
