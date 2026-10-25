@@ -21,15 +21,15 @@
 
     <header class="auth-header">
       <div class="auth-header-brand">
-        <img src="icons/icon.svg" alt="Saldar Serviços" class="auth-header-icon" />
-        <span class="auth-header-title">SALDAR SERVIÇOS</span>
+        <img src="icons/icon.svg" alt="Logo" class="auth-header-icon" />
+        <span class="auth-header-title" data-app-name="upper">SALDAR SERVIÇOS</span>
       </div>
       <button type="button" class="auth-menu-btn" id="openMenuBtn" aria-label="Abrir menu">☰</button>
     </header>
 
     <main class="auth-main">
       <div class="auth-form-container">
-        <h1 class="auth-form-title">SALDAR SERVIÇOS</h1>
+        <h1 class="auth-form-title" data-app-name="upper">SALDAR SERVIÇOS</h1>
         <p class="auth-form-slogan">Gestão simples, resultados reais.</p>
 
         <form id="loginForm" class="auth-form">
@@ -72,7 +72,7 @@
     </main>
 
     <footer class="auth-footer">
-      ©2026, Saldar Serviços. Gestão e controle.
+      ©2026, <span data-app-name>Saldar Serviços</span>. Gestão e controle.
     </footer>
   </section>
 
@@ -82,8 +82,8 @@
   <div class="drawer-overlay hidden" id="drawerOverlay"></div>
   <aside class="drawer" id="drawerMenu" aria-hidden="true">
     <div class="drawer-header">
-      <img src="icons/icon.svg" alt="Saldar Serviços" class="drawer-icon" />
-      <h2 class="drawer-title">SALDAR SERVIÇOS</h2>
+      <img src="icons/icon.svg" alt="Logo" class="drawer-icon" />
+      <h2 class="drawer-title" data-app-name="upper">SALDAR SERVIÇOS</h2>
       <p class="drawer-slogan">Gestão simples, resultados reais.</p>
     </div>
 
@@ -135,7 +135,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gestão de Stock e Vendas</p>
-        <h1>Saldar Serviços</h1>
+        <h1 data-app-name>Saldar Serviços</h1>
       </div>
       <div class="topbar-actions">
         <select id="storeSelector" class="store-selector" title="Loja ativa"></select>
@@ -692,7 +692,7 @@
             </div>
             <div class="item">
               <strong>Observação</strong>
-              <span>No modo online, a importação também atualiza os dados atuais da aplicação.</span>
+              <span>O restauro só está disponível no modo local. No modo nuvem os dados já estão guardados no Firebase; use a exportação CSV para cópias.</span>
             </div>
           </div>
         </div>
@@ -810,6 +810,18 @@
       <!-- NUVEM                                                  -->
       <!-- ===================================================== -->
       <section class="tab-panel" id="nuvem">
+        <div class="card" data-perm="nuvem">
+          <h3>🏷️ Nome da aplicação</h3>
+          <p class="mini-text">Aparece no topo, no login, nos recibos e nos PDFs. Na nuvem, muda para todos os telemóveis.</p>
+          <div class="cloud-grid">
+            <label>Nome
+              <input type="text" id="appNameInput" maxlength="40" placeholder="Saldar Serviços" />
+            </label>
+            <button type="button" class="primary" id="saveAppNameBtn">Guardar nome</button>
+            <button type="button" class="ghost" id="resetAppNameBtn">Repor nome original</button>
+          </div>
+          <p class="mini-text">O nome do ícone no ecrã inicial vem do ficheiro <strong>manifest.json</strong> e só muda editando esse ficheiro.</p>
+        </div>
         <div class="card"><h3>Status da nuvem</h3><div id="cloudPanel" class="list"></div></div>
       </section>
     </main>
