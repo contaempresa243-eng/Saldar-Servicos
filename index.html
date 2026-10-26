@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Saldar Serviços • Versão 43</title>
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA DE LOGIN                                            -->
+  <!-- ========================================================= -->
+  <section class="auth-shell" id="authShell">
+
+    <header class="auth-header">
+      <div class="auth-header-brand">
+        <img src="icons/icon.svg" alt="Logo" class="auth-header-icon" />
+        <span class="auth-header-title" data-app-name="upper">SALDAR SERVIÇOS</span>
+      </div>
+      <button type="button" class="auth-menu-btn" id="openMenuBtn" aria-label="Abrir menu">☰</button>
+    </header>
+
+    <main class="auth-main">
+      <div class="auth-form-container">
+        <h1 class="auth-form-title" data-app-name="upper">SALDAR SERVIÇOS</h1>
+        <p class="auth-form-slogan">Gestão simples, resultados reais.</p>
+
+        <form id="loginForm" class="auth-form">
+          <label class="hidden" id="fullNameWrap">
+            Nome completo
+            <input type="text" id="registerFullName" placeholder="Ex.: Maria João" />
+          </label>
+
+          <label>
+            <span id="loginLabel">Usuário / Email</span>
+            <input type="text" id="loginUsername" placeholder="Digite o usuário ou email" required autocomplete="username" />
+          </label>
+
+          <label>
+            <div class="password-wrapper">
+              Palavra-passe
+              <input type="password" id="loginPassword" placeholder="Digite a palavra-passe" required autocomplete="current-password" />
+              <span class="password-toggle" onclick="togglePassword('loginPassword', this)">👁️</span>
+            </div>
+          </label>
+
+          <label class="hidden" id="confirmWrap">
+            <div class="password-wrapper">
+              Confirmar palavra-passe
+              <input type="password" id="confirmPassword" placeholder="Repita a palavra-passe" />
+              <span class="password-toggle" onclick="togglePassword('confirmPassword', this)">👁️</span>
+            </div>
+          </label>
+
+          <button class="primary full-span" type="submit" id="loginSubmitBtn">Entrar</button>
+
+          <div class="button-row full-span auth-extra-links">
+            <span id="forgotPasswordLink" class="hidden">Esqueceu a palavra-passe?</span>
+            <span id="resendVerifyLink" class="hidden">Reenviar email de verificação</span>
+          </div>
+
+          <button type="button" id="switchAuthModeBtn" class="ghost full-span hidden">Criar conta online</button>
+        </form>
+      </div>
+    </main>
+
+    <footer class="auth-footer">
+      ©2026, <span data-app-name>Saldar Serviços</span>. Gestão e controle.
+    </footer>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- DRAWER (menu lateral)                                       -->
+  <!-- ========================================================= -->
+  <div class="drawer-overlay hidden" id="drawerOverlay"></div>
+  <aside class="drawer" id="drawerMenu" aria-hidden="true">
+    <div class="drawer-header">
+      <img src="icons/icon.svg" alt="Logo" class="drawer-icon" />
+      <h2 class="drawer-title" data-app-name="upper">SALDAR SERVIÇOS</h2>
+      <p class="drawer-slogan">Gestão simples, resultados reais.</p>
+    </div>
+
+    <div class="drawer-body">
+      <p class="drawer-description">Controle stock, vendas, caixa, usuários, relatórios e backup com modo local e base pronta para sincronização online.</p>
+
+      <div class="drawer-spacer"></div>
+      <div class="drawer-spacer"></div>
+
+      <p class="drawer-hint">Use os acessos locais ou ative o modo online com Firebase.</p>
+
+      <div class="connectivity-box">
+        <span class="connectivity-badge local" id="connectivityBadge">⚪ Modo local</span>
+      </div>
+
+      <hr class="drawer-divider" />
+
+      <details class="drawer-config">
+        <summary>⚙️ Configurar modo online Firebase</summary>
+        <div class="cloud-grid">
+          <label class="toggle-line">
+            <input type="checkbox" id="cloudEnabled" />
+            <span>Ativar modo online</span>
+          </label>
+          <label>
+            Configuração Firebase (JSON)
+            <textarea id="firebaseConfigInput" rows="8" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+          </label>
+          <label>
+            Emails de administrador (separados por vírgula)
+            <input type="text" id="adminEmailsInput" placeholder="admin@exemplo.com, gestor@exemplo.com" />
+          </label>
+          <button type="button" class="primary" id="saveCloudConfigBtn">Salvar configuração</button>
+          <p class="status-text" id="cloudStatusText">Sem configuração online ativa.</p>
+        </div>
+      </details>
+
+      <div class="drawer-actions">
+        <button type="button" class="primary" id="openStoreManageBtn">🏪 Gerir lojas</button>
+        <button type="button" class="ghost" id="closeMenuBtn">Fechar menu</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================= -->
+  <!-- APP PRINCIPAL (após login)                                  -->
+  <!-- ========================================================= -->
+  <div class="app-shell hidden" id="appShell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Gestão de Stock e Vendas</p>
+        <h1 data-app-name>Saldar Serviços</h1>
+      </div>
+      <div class="topbar-actions">
+        <select id="storeSelector" class="store-selector" title="Loja ativa"></select>
+        <span class="badge info" id="cloudTopBadge">Local</span>
+        <button id="installBtn" class="ghost hidden">Instalar</button>
+        <div class="user-pill">
+          <span id="currentUserName">—</span>
+          <small id="currentUserRole">—</small>
+        </div>
+        <button id="logoutBtn" class="danger-lite">Sair</button>
+      </div>
+    </header>
+
+    <section class="stats-grid" id="statsGrid"></section>
+
+    <!-- Grupos de navegação (nível 1) -->
+    <nav class="tabs-groups" id="tabGroups">
+      <button class="group-tab active" data-group="painel" type="button">📊 Painel</button>
+      <button class="group-tab" data-group="operacoes" type="button">🛒 Operações</button>
+      <button class="group-tab" data-group="gestao" type="button">👥 Gestão</button>
+      <button class="group-tab" data-group="sistema" type="button" data-role="admin">⚙️ Sistema</button>
+    </nav>
+
+    <!-- Sub-tabs (nível 2) -->
+    <nav class="tabs subtabs" id="tabs">
+      <button class="tab active" data-tab="dashboard" data-group="painel">Painel</button>
+
+      <button class="tab" data-tab="venda" data-group="operacoes">Venda</button>
+      <button class="tab" data-tab="stock" data-group="operacoes" data-role="admin">Stock</button>
+      <button class="tab" data-tab="caixa" data-group="operacoes" data-role="admin">Caixa</button>
+      <button class="tab" data-tab="historico" data-group="operacoes">Histórico</button>
+
+      <button class="tab" data-tab="produtos" data-group="gestao" data-role="admin">Produtos</button>
+      <button class="tab" data-tab="usuarios" data-group="gestao" data-role="admin">Usuários</button>
+      <button class="tab" data-tab="clientes" data-group="gestao" data-role="admin">Clientes</button>
+      <button class="tab" data-tab="despesas" data-group="gestao" data-role="admin">Despesas</button>
+      <button class="tab" data-tab="relatorio" data-group="gestao" data-role="admin">Relatório</button>
+      <button class="tab" data-tab="comissoes" data-group="gestao" data-role="admin">💰 Comissões</button>
+      <button class="tab" data-tab="auditoria" data-group="gestao" data-role="admin">Auditoria</button>
+
+      <button class="tab" data-tab="backup" data-group="sistema" data-role="admin">Backup</button>
+      <button class="tab" data-tab="exportar" data-group="sistema" data-role="admin">Exportar</button>
+      <button class="tab" data-tab="nuvem" data-group="sistema" data-role="admin">Nuvem</button>
+    </nav>
+
+    <main>
+      <!-- ============ DASHBOARD ============ -->
+<section class="tab-panel active" id="dashboard">
+
+  <!-- ===== GRELHA DE MINI-CARTÕES CLICÁVEIS ===== -->
+  <div class="panel-grid">
+
+    <button type="button" class="panel-card" data-detail="products">
+      <span class="panel-card-icon">📦</span>
+      <strong>Produtos</strong>
+      <small id="panelProductsCount">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="lowStock">
+      <span class="panel-card-icon">⚠️</span>
+      <strong>Alertas de stock</strong>
+      <small id="panelLowStockCount">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="topSales">
+      <span class="panel-card-icon">🏆</span>
+      <strong>Mais vendidos</strong>
+      <small id="panelTopSalesCount">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="payments">
+      <span class="panel-card-icon">💳</span>
+      <strong>Pagamentos</strong>
+      <small id="panelPaymentsTotal">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="activity">
+      <span class="panel-card-icon">🕒</span>
+      <strong>Atividade</strong>
+      <small id="panelActivityCount">—</small>
+    </button>
+
+    <button type="button" class="panel-card" data-detail="financeiro">
+      <span class="panel-card-icon">💰</span>
+      <strong>Financeiro</strong>
+      <small id="panelFinanceiroTotal">—</small>
+    </button>
+
+  </div>
+
+  <!-- ===== GRÁFICOS E COMPARAÇÃO MENSAL (ficam visíveis) ===== -->
+  <div class="dashboard-grid">
+
+    <div class="card full-width-card" data-perm="verFinanceiro">
+      <h3>📅 Comparação mensal</h3>
+      <div id="monthComparison" class="month-comparison"></div>
+    </div>
+
+    <div class="card full-width-card" data-perm="verFinanceiro">
+      <h3>📈 Vendas dos últimos 7 dias</h3>
+      <div class="chart-container">
+        <canvas id="chartSales7d"></canvas>
+      </div>
+    </div>
+
+    <div class="card full-width-card" data-perm="verFinanceiro">
+      <h3>🏆 Top 5 produtos (últimos 30 dias)</h3>
+      <div class="chart-container">
+        <canvas id="chartTopProducts"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== CONTENTORES ESCONDIDOS (o app.js continua a escrever aqui) ===== -->
+  <div style="display:none" aria-hidden="true">
+    <div id="productSummary"></div>
+    <div id="lowStockList"></div>
+    <div id="topSalesList"></div>
+    <div id="paymentSummary"></div>
+    <div id="recentActivity"></div>
+    <div id="financeiroContent"></div>
+  </div>
+
+</section>
+
+      <!-- ===================================================== -->
+      <!-- PRODUTOS                                               -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="produtos">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Cadastro e edição de produtos</h3>
+              <p class="mini-text">Crie, altere ou remova produtos do catálogo.</p>
+            </div>
+            <span class="badge info" id="productFormMode">Novo produto</span>
+          </div>
+          <form id="productForm" class="form-grid">
+            <input type="hidden" id="productEditId" />
+            <label>Nome do produto<input type="text" id="productName" required /></label>
+            <label>Categoria<select id="productCategory" required>
+              <option value="RL">Recarga Eletrônica (RL)</option>
+              <option value="CF">Cartão Físico (CF)</option>
+            </select></label>
+            <label>Stock inicial<input type="number" id="productStock" min="0" step="0.01" required /></label>
+            <label>Alerta mínimo<input type="number" id="productMinStock" min="0" step="0.01" required /></label>
+            <label>Preço padrão (AOA) — apenas CF<input type="number" id="productPrice" min="0" step="0.01" value="0" /></label>
+            <label>Preço de grosso (AOA)<input type="number" id="productPriceWholesale" min="0" step="0.01" value="0" placeholder="Preço quando compra em quantidade" /></label>
+<label>Qtd. mínima para grosso<input type="number" id="productWholesaleQty" min="1" step="1" value="5" /></label>
+<label>Comissão do operador (%)<input type="number" id="productCommission" min="0" max="100" step="0.01" value="0" placeholder="Ex.: 7,2 para UNITEL" /></label>
+<label>Preço de custo por unidade (AOA) — opcional, só CF<input type="number" id="productCost" min="0" step="0.01" value="0" placeholder="Se preencher, o lucro = preço − custo" /></label>
+<label>Preço VIP (AOA)<input type="number" id="productPriceVip" min="0" step="0.01" value="0" placeholder="Preço para clientes VIP" /></label>
+            <div class="button-row full-span">
+              <button class="primary" type="submit">Salvar produto</button>
+              <button class="ghost" type="button" id="cancelProductEditBtn">Cancelar edição</button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <div><h3>Lista de produtos</h3><p class="mini-text">Use a pesquisa para localizar rapidamente.</p></div>
+          </div>
+          <div class="filter-row">
+            <input type="text" id="productSearch" placeholder="Pesquisar por nome ou categoria" />
+          </div>
+          <div id="productCards" class="list carousel-slider"></div>
+        </div>
+        <div class="card" id="marginCard">
+          <div class="section-head">
+            <div><h3>Custo e margem</h3><p class="mini-text">Lucro por unidade de cada produto, do mais rentável para o menos.</p></div>
+          </div>
+          <div id="marginTable" class="list"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+<!-- STOCK                                                  -->
+<!-- ===================================================== -->
+<section class="tab-panel" id="stock">
+
+  <!-- Mini-cartão clicável -->
+  <div class="panel-grid">
+    <button type="button" class="panel-card" id="openStockEntryBtn">
+      <span class="panel-card-icon">📥</span>
+      <strong>Entrada de stock</strong>
+      <small>Registar nova entrada</small>
+    </button>
+  </div>
+
+  <!-- Estado do stock -->
+  <div class="card">
+    <h3>Estado do stock</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Produto</th><th>Categoria</th><th>Stock</th><th>Mínimo</th><th>Preço</th></tr></thead>
+        <tbody id="stockTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</section>
+      <!-- ===================================================== -->
+      <!-- VENDA                                                  -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="venda">
+        <div class="card">
+          <h3>➕ Adicionar produto à venda</h3>
+          <form id="saleForm" class="form-grid">
+            <label>Produto<select id="saleProduct"></select></label>
+            <label>Quantidade<input type="number" id="saleQty" min="1" step="1" required /></label>
+            <label>Preço unitário (AOA)<input type="number" id="salePrice" min="0" step="0.01" required /></label>
+            <label>Método de pagamento<select id="saleMethod">
+              <option value="dinheiro">Dinheiro</option>
+              <option value="transferencia">Transferência</option>
+              <option value="multicaixa">Multicaixa</option>
+            </select></label>
+            <label class="full-span">Cliente
+              <div class="client-picker-row">
+                <input type="text" id="saleClient" placeholder="Nome do cliente (opcional)" />
+                <button type="button" class="ghost" id="pickClientBtn">📋 Escolher</button>
+              </div>
+            </label>
+            <label class="full-span">Observação<input type="text" id="saleNote" placeholder="Observação sobre a venda (opcional)" /></label>
+            <div class="info-inline full-span" id="saleStockHint">Selecione um produto para ver stock e preço.</div>
+            <div class="info-inline full-span hidden" id="salePriceHint">—</div>
+            <button class="primary full-span" type="submit">➕ Adicionar ao carrinho</button>
+          </form>
+        </div>
+
+        <div class="card cart-card">
+          <div class="section-head">
+            <div>
+              <h3>🛒 Carrinho</h3>
+              <p class="mini-text" id="cartItemCount">Nenhum produto adicionado</p>
+            </div>
+          </div>
+
+          <div id="cartList" class="list"></div>
+
+          <div id="cartSummary" class="cart-summary hidden">
+            <div class="cart-total-row">
+              <span>Total a pagar</span>
+              <strong id="cartTotalValue">0,00 AOA</strong>
+            </div>
+            <div class="cart-actions">
+              <button type="button" class="ghost" id="clearCartBtn">🗑️ Limpar</button>
+              <button type="button" class="primary" id="finalizeSaleBtn">✅ Finalizar venda</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- CAIXA                                                  -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="caixa">
+        <div class="card">
+          <h3>Controle de caixa</h3>
+          <form id="cashForm" class="form-grid">
+            <label>Tipo de movimento<select id="cashType">
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+            </select></label>
+            <label>Valor (AOA)<input type="number" id="cashAmount" min="0" step="0.01" required /></label>
+            <label class="full-span">Descrição<input type="text" id="cashNote" placeholder="Ex.: troco, despesas, reforço" required /></label>
+            <button class="primary full-span" type="submit">Registrar movimento</button>
+          </form>
+        </div>
+        <div class="card"><h3>Resumo do caixa</h3><div id="cashSummary" class="list"></div></div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- HISTÓRICO                                              -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="historico">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Histórico geral</h3>
+        <p class="mini-text">Filtre por tipo, período, operador, cliente ou método de pagamento.</p>
+      </div>
+      <button type="button" class="ghost" id="clearHistoryFiltersBtn">🧹 Limpar filtros</button>
+    </div>
+
+    <div class="history-filters">
+      <label>
+        Tipo
+        <select id="historyFilter">
+          <option value="todos">Todos</option>
+          <option value="venda">Vendas</option>
+          <option value="stock">Entradas de stock</option>
+          <option value="caixa">Movimentos de caixa</option>
+        </select>
+      </label>
+
+      <label>
+        Data início
+        <input type="date" id="historyDateFrom" />
+      </label>
+
+      <label>
+        Data fim
+        <input type="date" id="historyDateTo" />
+      </label>
+
+      <label>
+        Operador
+        <select id="historyOperator">
+          <option value="">Todos os operadores</option>
+        </select>
+      </label>
+
+      <label>
+        Cliente
+        <select id="historyClient">
+          <option value="">Todos os clientes</option>
+        </select>
+      </label>
+
+      <label>
+        Método de pagamento
+        <select id="historyPayment">
+          <option value="">Todos os métodos</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="transferencia">Transferência</option>
+          <option value="multicaixa">Multicaixa</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="historyList" class="list"></div>
+  </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- RELATÓRIO                                              -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="relatorio">
+  <div class="card report-main-card">
+    <div class="report-header">
+      <div>
+        <h3>Relatório por período</h3>
+        <p class="mini-text">Escolha um período para ver o resumo.</p>
+      </div>
+      <div class="report-actions">
+        <button type="button" class="range-select-btn" id="reportRangeBtn">
+  <span id="reportRangeLabel">— Escolher período —</span>
+  <span class="arrow">▾</span>
+</button>
+<input type="hidden" id="reportRange" value="" />
+        <button type="button" class="pdf-icon-btn" id="pdfIconBtn" title="Exportar relatório PDF" aria-label="Exportar PDF">
+          <span class="pdf-icon">📄</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="dailyReport" class="report-grid hidden"></div>
+
+    <div id="pdfPanel" class="pdf-panel hidden">
+      <div class="pdf-panel-title">📄 Exportar relatório PDF</div>
+      <div class="pdf-options">
+        <label class="pdf-option">
+          <input type="checkbox" id="pdfIncludeSummary" checked />
+          <span>📊 Resumo financeiro</span>
+        </label>
+        <label class="pdf-option">
+          <input type="checkbox" id="pdfIncludeByProduct" checked />
+          <span>📦 Resumo por produto</span>
+        </label>
+        <label class="pdf-option">
+          <input type="checkbox" id="pdfIncludeByClient" checked />
+          <span>👥 Resumo por cliente</span>
+        </label>
+        <label class="pdf-option">
+          <input type="checkbox" id="pdfIncludeByOperator" checked />
+          <span>👤 Resumo por operador</span>
+        </label>
+        <label class="pdf-option">
+          <input type="checkbox" id="pdfIncludeExpenses" checked />
+          <span>💸 Despesas detalhadas</span>
+        </label>
+        <label class="pdf-option">
+          <input type="checkbox" id="pdfIncludeSales" checked />
+          <span>📋 Vendas detalhadas</span>
+        </label>
+      </div>
+      <button type="button" class="primary full-span" id="exportPdfBtn" data-perm="relatorio">📄 Exportar PDF</button>
+    </div>
+  </div>
+      </section>
+
+      <section class="tab-panel" id="despesas">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Nova despesa</h3>
+        <p class="mini-text">Registe as despesas do negócio para calcular o lucro real.</p>
+      </div>
+      <span class="badge info" id="expenseFormMode">Nova despesa</span>
+    </div>
+    <form id="expenseForm" class="form-grid">
+      <input type="hidden" id="expenseEditId" />
+      <label>Data<input type="date" id="expenseDate" required /></label>
+      <label>Categoria
+        <select id="expenseCategory" required>
+          <option value="luz">💡 Luz</option>
+          <option value="agua">💧 Água</option>
+          <option value="renda">🏠 Renda</option>
+          <option value="salarios">👥 Salários</option>
+          <option value="internet">🌐 Internet</option>
+          <option value="combustivel">⛽ Combustível</option>
+          <option value="manutencao">🔧 Manutenção</option>
+          <option value="outra">📦 Outra</option>
+        </select>
+      </label>
+      <label>Valor (AOA)<input type="number" id="expenseAmount" min="0" step="0.01" required /></label>
+      <label>Descrição<input type="text" id="expenseDescription" placeholder="Ex.: Fatura de Setembro" required /></label>
+      <label class="full-span">Observações<input type="text" id="expenseNotes" placeholder="Opcional" /></label>
+      <div class="button-row full-span">
+        <button class="primary" type="submit">Guardar despesa</button>
+        <button class="ghost" type="button" id="cancelExpenseEditBtn">Cancelar edição</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Resumo de despesas</h3>
+        <p class="mini-text">Total gasto por período e categoria.</p>
+      </div>
+      <select id="expenseRange" class="range-select">
+        <option value="today">Hoje</option>
+        <option value="7d">Últimos 7 dias</option>
+        <option value="30d">Últimos 30 dias</option>
+        <option value="month" selected>Este mês</option>
+      </select>
+    </div>
+    <div id="expenseSummary" class="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Histórico de despesas</h3>
+        <p class="mini-text">Todas as despesas registadas.</p>
+      </div>
+      <select id="expenseFilter" class="range-select">
+        <option value="todas">Todas as categorias</option>
+        <option value="luz">💡 Luz</option>
+        <option value="agua">💧 Água</option>
+        <option value="renda">🏠 Renda</option>
+        <option value="salarios">👥 Salários</option>
+        <option value="internet">🌐 Internet</option>
+        <option value="combustivel">⛽ Combustível</option>
+        <option value="manutencao">🔧 Manutenção</option>
+        <option value="outra">📦 Outra</option>
+      </select>
+    </div>
+    <div id="expenseList" class="list"></div>
+  </div>
+</section>
+
+      <!-- ===================================================== -->
+      <!-- CLIENTES                                               -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="clientes">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Cadastro de clientes</h3>
+              <p class="mini-text">Crie e edite clientes. Cada venda associada aparece no histórico do cliente.</p>
+            </div>
+            <span class="badge info" id="clientFormMode">Novo cliente</span>
+          </div>
+          <form id="clientForm" class="form-grid">
+            <input type="hidden" id="clientEditId" />
+            <label>Nome completo<input type="text" id="clientName" required /></label>
+            <label>Telefone<input type="tel" id="clientPhone" placeholder="Ex.: +244 9XX XXX XXX" /></label>
+            <label>Email (opcional)<input type="email" id="clientEmail" placeholder="exemplo@email.com" /></label>
+            <label>NIF (opcional)<input type="text" id="clientNif" placeholder="Ex.: 0000000000" /></label>
+            <label class="toggle-line full-span">
+  <input type="checkbox" id="clientVip" />
+  <span>⭐ Cliente VIP (aplica preço especial)</span>
+            </label>
+            <label class="full-span">Notas<input type="text" id="clientNotes" placeholder="Observações sobre o cliente" /></label>
+            <div class="button-row full-span">
+              <button class="primary" type="submit">Guardar cliente</button>
+              <button class="ghost" type="button" id="cancelClientEditBtn">Cancelar edição</button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <div><h3>Clientes cadastrados</h3><p class="mini-text">Clique num cliente para ver detalhes e histórico.</p></div>
+          </div>
+          <div class="filter-row">
+            <input type="text" id="clientSearch" placeholder="Pesquisar por nome, telefone ou NIF" />
+          </div>
+          <div id="clientCards" class="list compact"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- USUÁRIOS                                               -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="usuarios">
+        <div class="card">
+          <h3>Criar / Editar Usuário</h3>
+          <form id="userForm" class="form-grid">
+            <input type="hidden" id="userEditId" />
+            <label>Nome completo<input type="text" id="userFullName" required /></label>
+            <label><span id="userLoginLabel">Email (apenas online)</span><input type="email" id="userUsername" required /></label>
+            <label>Perfil<select id="userRole">
+              <option value="admin">Administrador</option>
+              <option value="operador">Operador</option>
+            </select></label>
+            <label>
+              <div class="password-wrapper">
+                <span id="userPassLabel">Palavra-passe</span>
+                <input type="password" id="userPassword" required />
+                <span class="password-toggle" onclick="togglePassword('userPassword', this)">👁️</span>
+              </div>
+            </label>
+            <label>Comissão (% sobre vendas)<input type="number" id="userCommission" min="0" max="100" step="0.01" value="0" placeholder="Ex.: 5" /></label>
+            <label class="full-span" id="userStoresWrap" style="display:none;">
+  <span>Lojas com acesso (admin vê todas automaticamente)</span>
+  <div id="userStoresList" class="store-checkbox-list"></div>
+            </label>
+            <div class="button-row full-span">
+              <button class="primary" type="submit" id="userSubmitBtn">Criar usuário</button>
+              <button class="ghost hidden" type="button" id="cancelUserEditBtn">Cancelar edição</button>
+            </div>
+          </form>
+          <p class="status-text hidden" id="cloudUserNotice">No modo online, a palavra-passe será gerida pelo Firebase Auth.</p>
+        </div>
+        <div class="card"><h3>Usuários cadastrados</h3><div id="userList" class="list"></div></div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- BACKUP                                                 -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="backup">
+        <div class="card">
+          <h3>Backup e restauração</h3>
+          <div class="list">
+            <div class="item">
+              <strong>Exportar backup</strong>
+              <span>Baixe um arquivo JSON com produtos, vendas, caixa, usuários e registos de auditoria.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportBackupBtn">Exportar backup</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>Restaurar backup</strong>
+              <span>Importe um backup JSON anteriormente exportado.</span>
+              <div class="card-actions">
+                <input type="file" id="importBackupFile" accept="application/json" />
+                <button type="button" class="ghost" id="importBackupBtn">Importar backup</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>Observação</strong>
+              <span>O restauro só está disponível no modo local. No modo nuvem os dados já estão guardados no Firebase; use a exportação CSV para cópias.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- EXPORTAR CSV                                           -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="exportar">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>📊 Exportação CSV</h3>
+              <p class="mini-text">Exporte os dados para Excel, Google Sheets ou outro programa. Formato compatível com Excel em português (separador <strong>;</strong>).</p>
+            </div>
+          </div>
+          <div class="list export-grid">
+            <div class="item">
+              <strong>📊 Vendas</strong>
+              <span>Histórico completo de vendas com cliente, produto, quantidade, valor e operador.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportSalesCsvBtn">Exportar Vendas (CSV)</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>📦 Stock</strong>
+              <span>Estado atual do stock com produto, categoria, quantidades, mínimo e preço.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportStockCsvBtn">Exportar Stock (CSV)</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>👥 Clientes</strong>
+              <span>Lista de clientes com contactos, NIF e estatísticas de compra.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportClientsCsvBtn">Exportar Clientes (CSV)</button>
+              </div>
+            </div>
+            <div class="item">
+              <strong>📋 Auditoria</strong>
+              <span>Registo completo das ações do sistema com utilizador, ação e data.</span>
+              <div class="card-actions">
+                <button type="button" class="primary" id="exportAuditCsvBtn">Exportar Auditoria (CSV)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- AUDITORIA                                              -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="auditoria">
+        <div class="card">
+          <div class="section-head">
+            <div><h3>Registo de auditoria</h3><p class="mini-text">Histórico de todas as ações sensíveis.</p></div>
+            <button type="button" class="danger" id="clearAuditBtn">🗑️ Limpar auditoria</button>
+          </div>
+          <div class="filter-row">
+            <select id="auditLogFilter">
+              <option value="todos">Todas as ações</option>
+              <option value="venda">Vendas</option>
+              <option value="stock">Entradas de stock</option>
+              <option value="caixa">Movimentos de caixa</option>
+              <option value="produto-criar">Produtos criados</option>
+              <option value="produto-editar">Produtos editados</option>
+              <option value="produto-remover">Produtos removidos</option>
+              <option value="user-criar">Utilizadores criados</option>
+              <option value="user-editar">Utilizadores editados</option>
+              <option value="user-remover">Utilizadores removidos</option>
+              <option value="user-toggle">Utilizadores ativados/desativados</option>
+              <option value="user-reset-pass">Reposições de senha</option>
+              <option value="client-criar">Clientes criados</option>
+              <option value="client-editar">Clientes editados</option>
+              <option value="client-remover">Clientes removidos</option>
+              <option value="login">Logins</option>
+              <option value="logout">Logouts</option>
+              <option value="session-timeout">Sessões expiradas</option>
+            </select>
+          </div>
+          <div id="auditLogList" class="list"></div>
+        </div>
+      </section>
+      
+<!-- ===================================================== -->
+<!-- COMISSÕES                                              -->
+<!-- ===================================================== -->
+<section class="tab-panel" id="comissoes">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>💰 Comissões por operador</h3>
+        <p class="mini-text">Cálculo automático das comissões com base nas vendas do período.</p>
+      </div>
+      <select id="commissionRange" class="range-select">
+        <option value="today">Hoje</option>
+        <option value="7d">Últimos 7 dias</option>
+        <option value="30d">Últimos 30 dias</option>
+        <option value="month" selected>Este mês</option>
+      </select>
+    </div>
+    <div id="commissionSummary" class="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h3>Detalhes por operador</h3>
+        <p class="mini-text">Resumo de vendas e comissão a pagar a cada operador.</p>
+      </div>
+    </div>
+    <div id="commissionList" class="list"></div>
+  </div>
+</section>
+      <!-- ===================================================== -->
+      <!-- NUVEM                                                  -->
+      <!-- ===================================================== -->
+      <section class="tab-panel" id="nuvem">
+        <div class="card" data-perm="nuvem">
+          <h3>🏷️ Nome da aplicação</h3>
+          <p class="mini-text">Aparece no topo, no login, nos recibos e nos PDFs. Na nuvem, muda para todos os telemóveis.</p>
+          <div class="cloud-grid">
+            <label>Nome
+              <input type="text" id="appNameInput" maxlength="40" placeholder="Saldar Serviços" />
+            </label>
+            <button type="button" class="primary" id="saveAppNameBtn" onclick="window.__saldarGuardarNome()">Guardar nome</button>
+            <button type="button" class="ghost" id="resetAppNameBtn" onclick="window.__saldarReporNome()">Repor nome original</button>
+          </div>
+          <p class="mini-text">O nome do ícone no ecrã inicial vem do ficheiro <strong>manifest.json</strong> e só muda editando esse ficheiro.</p>
+        </div>
+        <div class="card"><h3>Status da nuvem</h3><div id="cloudPanel" class="list"></div></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAIS (fora do appShell)                                  -->
+  <!-- ========================================================= -->
+
+  <!-- Modal de aviso de inatividade -->
+  <div id="idleWarningModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 420px; text-align: center;">
+      <h2 style="color: var(--warning); margin-bottom: 12px;">⚠️ Sessão a expirar</h2>
+      <p style="font-size: 16px; margin-bottom: 16px;">
+        A sua sessão vai expirar em <strong id="idleWarningCountdown">60</strong> segundos por inatividade.
+      </p>
+      <p class="mini-text" style="margin-bottom: 20px;">Clique no botão abaixo para continuar a trabalhar.</p>
+      <button type="button" class="primary" onclick="window.__saldarContinueSession()" style="width: 100%;">Continuar sessão</button>
+    </div>
+  </div>
+
+  <!-- Modal de alertas de stock baixo -->
+  <div id="lowStockModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <h3 style="margin: 0 0 8px; color: var(--warning); text-align:center;">⚠️ Alertas de stock baixo</h3>
+      <p class="mini-text" style="text-align:center; margin: 0 0 16px;">Produtos com stock igual ou abaixo do mínimo definido.</p>
+      <div id="lowStockModalList" class="list"></div>
+    </div>
+  </div>
+
+  <!-- Modal de recibo -->
+  <div id="receiptModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <div id="receiptContent"></div>
+      <div class="receipt-actions">
+        <button type="button" class="secondary-btn" onclick="window.imprimir80mm()">🎫 Imprimir 80mm</button>
+        <button type="button" class="secondary-btn" onclick="window.print()">🖨️ Imprimir A4</button>
+        <button type="button" class="primary" id="sendWhatsAppBtn">📱 WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: escolher cliente existente -->
+  <div id="pickClientModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <h3 style="margin:0 0 12px; text-align:center;">📋 Escolher cliente</h3>
+      <div class="filter-row"><input type="text" id="pickClientSearch" placeholder="Pesquisar por nome, telefone ou NIF" /></div>
+      <div id="pickClientList" class="list" style="max-height:50vh; overflow-y:auto; margin-top:8px;"></div>
+      <div class="button-row" style="margin-top:12px;">
+        <button type="button" class="ghost" id="pickClientNoneBtn" style="flex:1;">Sem cliente / Avulso</button>
+        <button type="button" class="primary" id="pickClientNewBtn" style="flex:1;">➕ Novo cliente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: criar cliente rápido (durante a venda) -->
+  <div id="newClientModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 380px;">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <h3 style="margin:0 0 12px; text-align:center;">➕ Novo cliente</h3>
+      <div class="form-grid" style="grid-template-columns:1fr;">
+        <label>Nome completo<input type="text" id="quickClientName" required /></label>
+        <label>Telefone<input type="tel" id="quickClientPhone" placeholder="Opcional" /></label>
+        <label>NIF<input type="text" id="quickClientNif" placeholder="Opcional" /></label>
+      </div>
+      <div class="button-row" style="margin-top:12px;">
+        <button type="button" class="ghost" id="quickClientCancelBtn" style="flex:1;">Cancelar</button>
+        <button type="button" class="primary" id="quickClientSaveBtn" style="flex:1;">Guardar e usar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: histórico de cliente -->
+  <div id="clientHistoryModal" class="modal hidden">
+    <div class="modal-content receipt-modal-content">
+      <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+      <div id="clientHistoryContent"></div>
+    </div>
+  </div>
+  
+ <!-- Modal genérico: alerta -->
+<div id="appAlertModal" class="modal hidden">
+  <div class="modal-content app-alert-content">
+    <div class="app-modal-icon" id="appAlertIcon">ℹ️</div>
+    <h3 class="app-modal-title" id="appAlertTitle">Aviso</h3>
+    <p class="app-modal-message" id="appAlertMessage"></p>
+    <button type="button" class="app-modal-btn primary" id="appAlertOkBtn">OK</button>
+  </div>
+</div>
+
+<!-- Modal genérico: confirmação -->
+<div id="appConfirmModal" class="modal hidden">
+  <div class="modal-content app-alert-content">
+    <div class="app-modal-icon" id="appConfirmIcon">❓</div>
+    <h3 class="app-modal-title" id="appConfirmTitle">Confirmar</h3>
+    <p class="app-modal-message" id="appConfirmMessage"></p>
+    <div class="app-modal-actions">
+      <button type="button" class="app-modal-btn ghost" id="appConfirmCancelBtn">Cancelar</button>
+      <button type="button" class="app-modal-btn primary" id="appConfirmOkBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Modal: escolher período do relatório -->
+<div id="reportRangeModal" class="modal hidden">
+  <div class="modal-content range-modal-content">
+    <div class="range-modal-header">
+      <h3>Escolher período</h3>
+    </div>
+    <div class="range-options">
+      <button type="button" class="range-option" data-value="">— Sem período —</button>
+      <button type="button" class="range-option" data-value="today">📅 Hoje</button>
+      <button type="button" class="range-option" data-value="7d">📅 Últimos 7 dias</button>
+      <button type="button" class="range-option" data-value="30d">📅 Últimos 30 dias</button>
+    </div>
+    <button type="button" class="ghost full-span" id="reportRangeCancelBtn">Cancelar</button>
+  </div>
+</div>
+
+  <!-- Toast GLOBAL (fora do appShell para aparecer também no login) -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="app.js"></script>
+
+  <!-- ===== Sheet de detalhe do Painel ===== -->
+<div id="panelDetailModal" class="panel-detail-modal hidden">
+  <div class="panel-detail-sheet" role="dialog" aria-modal="true">
+    <div class="panel-detail-header">
+      <h2 id="panelDetailTitle">Detalhes</h2>
+      <button id="panelDetailClose" class="panel-detail-close" aria-label="Fechar">✕</button>
+    </div>
+    <div class="panel-detail-body" id="panelDetailBody">
+      <!-- conteúdo injetado via JS -->
+    </div>
+  </div>
+</div>
+  <!-- ===== Sheet: Registar entrada de stock ===== -->
+<div id="stockEntryModal" class="panel-detail-modal hidden">
+  <div class="panel-detail-sheet" role="dialog" aria-modal="true">
+    <div class="panel-detail-header">
+      <h2>📥 Registar entrada de stock</h2>
+      <button id="stockEntryClose" class="panel-detail-close" aria-label="Fechar">✕</button>
+    </div>
+    <div class="panel-detail-body">
+      <form id="stockForm" class="form-grid">
+        <label>Produto<select id="stockProduct"></select></label>
+        <label>Valor / Unidades adicionadas<input type="number" id="stockQty" min="0.01" step="0.01" required /></label>
+        <label>Alerta mínimo<input type="number" id="stockMin" min="0" step="0.01" required /></label>
+        <label class="full-span">Valor total pago (AOA) — só cartões, opcional<input type="number" id="stockPaid" min="0" step="0.01" placeholder="Ex.: 4650 por 25 cartões → custo médio automático" /></label>
+        <label class="full-span">Observação<input type="text" id="stockNote" placeholder="Ex.: reposição da manhã" /></label>
+        <button class="primary full-span" type="submit">Registrar entrada</button>
+      </form>
+    </div>
+  </div>
+</div>
+  
+<!-- ===== Modal: Gerir lojas ===== -->
+<div id="storeManageModal" class="modal hidden">
+  <div class="modal-content receipt-modal-content">
+    <span class="close-modal" role="button" aria-label="Fechar">&times;</span>
+    <h3 style="margin:0 0 12px; text-align:center;">🏪 Gerir lojas</h3>
+    <p class="mini-text" style="text-align:center; margin:0 0 16px;">Cada loja tem stock, vendas, clientes e despesas separados.</p>
+
+    <div id="storeManageList" class="list" style="max-height:40vh; overflow-y:auto;"></div>
+
+    <div class="form-grid" style="grid-template-columns:1fr; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+      <label>Nome da nova loja<input type="text" id="newStoreName" placeholder="Ex.: Loja do Mercado" /></label>
+      <button type="button" class="primary full-span" id="createStoreBtn">➕ Criar loja</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
