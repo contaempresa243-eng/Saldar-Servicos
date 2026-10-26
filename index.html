@@ -304,6 +304,12 @@
           </div>
           <div id="productCards" class="list carousel-slider"></div>
         </div>
+        <div class="card" id="marginCard">
+          <div class="section-head">
+            <div><h3>Custo e margem</h3><p class="mini-text">Lucro por unidade de cada produto, do mais rentável para o menos.</p></div>
+          </div>
+          <div id="marginTable" class="list"></div>
+        </div>
       </section>
 
       <!-- ===================================================== -->
@@ -976,6 +982,7 @@
         <label>Produto<select id="stockProduct"></select></label>
         <label>Valor / Unidades adicionadas<input type="number" id="stockQty" min="0.01" step="0.01" required /></label>
         <label>Alerta mínimo<input type="number" id="stockMin" min="0" step="0.01" required /></label>
+        <label class="full-span">Valor total pago (AOA) — só cartões, opcional<input type="number" id="stockPaid" min="0" step="0.01" placeholder="Ex.: 4650 por 25 cartões → custo médio automático" /></label>
         <label class="full-span">Observação<input type="text" id="stockNote" placeholder="Ex.: reposição da manhã" /></label>
         <button class="primary full-span" type="submit">Registrar entrada</button>
       </form>

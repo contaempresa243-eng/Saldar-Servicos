@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v43.7)
+// SALDAR SERVIÇOS — app.js (v43.9)
 // =====================================================================
 
 // ============================================================
@@ -282,7 +282,7 @@ const saveLocal = () => {
 };
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
-const APP_BUILD = 'v43.7';
+const APP_BUILD = 'v43.9';
 const DEFAULT_APP_NAME = 'Saldar Serviços';
 const appName = () => String(settings.appName || '').trim() || DEFAULT_APP_NAME;
 function applyBranding() {
@@ -1360,6 +1360,33 @@ if (els.panelActivityCount) {
 }
 }
 
+function renderMarginTable() {
+  const box = document.getElementById('marginTable');
+  if (!box) return;
+  const rows = state.products.map((p) => {
+    const price = Number(p.price || 0);
+    const cost = Number(p.costPrice || 0);
+    const pct = Number(p.commissionPct || 0);
+    if (p.category === 'RL') {
+      return { p, kind: 'RL', unit: pct * 10, margin: pct, detail: `Comissão ${pct.toLocaleString('pt-PT')}% • por cada 1.000 vendidos: ${money(pct * 10)}`, ok: pct > 0 };
+    }
+    if (cost > 0) {
+      const unit = price - cost;
+      return { p, kind: 'CF', unit, margin: price > 0 ? (unit / price) * 100 : 0, detail: `Custo ${money(cost)} • Venda ${money(price)} • Lucro/un.: ${money(unit)}`, ok: true };
+    }
+    const unit = price * pct / 100;
+    return { p, kind: 'CF', unit, margin: pct, detail: pct > 0 ? `Comissão ${pct.toLocaleString('pt-PT')}% • Lucro/un.: ${money(unit)}` : 'Sem custo nem comissão definidos', ok: pct > 0 };
+  }).sort((a, b) => b.margin - a.margin);
+  box.innerHTML = rows.length ? rows.map((r) => `
+    <div class="item">
+      <div>
+        <strong>${esc(r.p.name)}</strong>
+        <span>${esc(r.detail)}</span>
+      </div>
+      <span class="badge ${r.ok ? (r.margin >= 5 ? 'info' : 'warning') : 'low'}">${r.ok ? r.margin.toFixed(1).replace('.', ',') + '%' : 'definir'}</span>
+    </div>`).join('') : '<div class="item empty-state">Sem produtos.</div>';
+}
+
 function renderProductCards() {
   if (!els.productCards) return;
   const term = els.productSearch?.value.trim().toLowerCase() || '';
@@ -1754,6 +1781,36 @@ function renderExpenseSummary() {
       </div>
     </div>
     ${catRows || '<div class="item empty-state">Sem despesas no período.</div>'}
+    ${profitByProductHtml(sales)}
+  `;
+}
+
+function profitByProductHtml(sales) {
+  const map = {};
+  sales.forEach((s) => {
+    const p = byId(s.productId);
+    const cat = p?.category || 'CF';
+    const k = s.productName || '—';
+    const r = map[k] || (map[k] = { cat, qty: 0, total: 0, profit: 0 });
+    r.qty += Number(s.quantity || 0);
+    r.total += Number(s.total || 0);
+    r.profit += Number(s.profit || 0);
+  });
+  const rows = Object.entries(map).sort((a, b) => b[1].profit - a[1].profit);
+  if (!rows.length) return '';
+  const grp = { RL: { total: 0, profit: 0 }, CF: { total: 0, profit: 0 } };
+  rows.forEach(([, r]) => { const g = r.cat === 'RL' ? grp.RL : grp.CF; g.total += r.total; g.profit += r.profit; });
+  return `
+    <h4 style="margin:16px 0 8px">Lucro por produto</h4>
+    <div class="expense-summary-grid">
+      <div class="expense-summary-box"><small>📲 Recargas (RL)</small><strong>${money(grp.RL.profit)}</strong></div>
+      <div class="expense-summary-box"><small>💳 Cartões (CF)</small><strong>${money(grp.CF.profit)}</strong></div>
+    </div>
+    ${rows.map(([name, r]) => `
+      <div class="item"><strong>${esc(name)}</strong>
+        <span>${r.cat === 'RL' ? '' : r.qty + ' un. • '}Vendido: ${money(r.total)} • Lucro: <b>${money(r.profit)}</b></span>
+      </div>`).join('')}
+    <p class="mini-text">Vendas anteriores à v43.5 não têm lucro guardado (contam 0).</p>
   `;
 }
 
@@ -1958,6 +2015,7 @@ function renderAll() {
   try { renderStats(); } catch (e) { _origConsoleError('[renderStats]', e); }
   try { renderDashboard(); } catch (e) { _origConsoleError('[renderDashboard]', e); }
   try { renderProductCards(); } catch (e) { _origConsoleError('[renderProductCards]', e); }
+  try { renderMarginTable(); } catch (e) { _origConsoleError('[renderMarginTable]', e); }
   try { renderStock(); } catch (e) { _origConsoleError('[renderStock]', e); }
   try { renderHistory(); } catch (e) { _origConsoleError('[renderHistory]', e); }
   try { renderCash(); } catch (e) { _origConsoleError('[renderCash]', e); }
@@ -3590,11 +3648,24 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   const user = getCurrentUser();
   if (!product || qty <= 0 || !user) return;
 
+  // Custo médio ponderado (só cartões, quando se indica o valor pago)
+  const paid = Number(document.getElementById('stockPaid')?.value || 0);
+  let unitCost = 0;
+  if (product.category !== 'RL' && paid > 0) {
+    const oldStock = Math.max(0, Number(product.stock || 0));
+    const oldCost = Number(product.costPrice || 0);
+    unitCost = (oldStock > 0 && oldCost > 0)
+      ? (oldStock * oldCost + paid) / (oldStock + qty)
+      : paid / qty;
+    unitCost = Math.round(unitCost * 100) / 100;
+    product.costPrice = unitCost;
+  }
   product.stock += qty;
   product.minStock = minStock;
   state.history.push({
     id: uid(), type: 'stock', productId: product.id, productName: product.name,
     quantity: qty, note: els.stockNote.value.trim(),
+    ...(paid > 0 && product.category !== 'RL' ? { paid, unitCost } : {}),
     createdById: user.id, createdByName: user.fullName, date: now()
   });
 
@@ -3608,7 +3679,7 @@ document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   e.target.reset();
   syncMin();
   renderAll();
-  toast('Entrada de stock registrada com sucesso.');
+  toast(unitCost > 0 ? `Entrada registada. Custo médio: ${money(unitCost)} por unidade.` : 'Entrada de stock registrada com sucesso.', unitCost > 0 ? 5000 : undefined);
   closeStockEntrySheet();
 });
 
@@ -5818,7 +5889,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v43.7...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43.9...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
