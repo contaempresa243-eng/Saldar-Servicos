@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v43.3)
+// SALDAR SERVIÇOS — app.js (v43.4)
 // =====================================================================
 
 // ============================================================
@@ -282,7 +282,7 @@ const saveLocal = () => {
 };
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
-const APP_BUILD = 'v43.3';
+const APP_BUILD = 'v43.4';
 const DEFAULT_APP_NAME = 'Saldar Serviços';
 const appName = () => String(settings.appName || '').trim() || DEFAULT_APP_NAME;
 function applyBranding() {
@@ -2198,6 +2198,15 @@ function applyStores(list, fromCache) {
   ids.forEach((id) => { if (!state.storesData[id]) state.storesData[id] = emptyStoreData(); });
   Object.keys(state.storesData).forEach((id) => { if (!ids.has(id)) delete state.storesData[id]; });
   sync.noStores = !fromCache && list.length === 0;
+  if (sync.noStores && session.currentUser?.role === 'admin' && !sync.askedFirstStore) {
+    sync.askedFirstStore = true;
+    setTimeout(async () => {
+      const ok = await appConfirm(
+        'Ainda não há nenhuma loja na nuvem.\n\nCriar agora a "Loja Principal"?\n\n(Se quer trazer os dados antigos deste telemóvel, toque em Cancelar e use Sistema › Nuvem › Enviar dados deste telemóvel.)',
+        'Primeira loja', '🏪');
+      if (ok) { const s = createStore('Loja Principal'); if (s) toast('Loja "Loja Principal" criada.'); }
+    }, 800);
+  }
 
   let want = state.currentStoreId;
   if (!want || !ids.has(want)) {
@@ -2381,6 +2390,20 @@ function flushDiff() {
     if (!sync.watch[col]) return;
     sync.synced[col] = new Map((data[col] || []).filter((i) => i && i.id).map((it) => [it.id, cloneJSON(it)]));
   });
+  return true;
+}
+
+// Na nuvem, só se pode gravar com uma loja ativa e os dados carregados
+function storeReady() {
+  if (!cloudMode()) return true;
+  if (!state.currentStoreId) {
+    toast('⚠️ Ainda não há nenhuma loja na nuvem. Vá a Sistema › Nuvem › "Criar primeira loja".', 9000);
+    return false;
+  }
+  if (!sync.ready) {
+    toast('A carregar os dados da loja… espere um instante e tente de novo.', 5000);
+    return false;
+  }
   return true;
 }
 
@@ -3447,6 +3470,7 @@ els.logoutBtn?.addEventListener('click', async () => {
 els.productForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
+  if (!storeReady()) return;
 
   const payload = {
     name: els.productName.value.trim(),
@@ -3532,6 +3556,7 @@ if (!ok) return;
 document.getElementById('stockForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
+  if (!storeReady()) return;
 
   const product = byId(els.stockProduct.value);
   const qty = Number(els.stockQty.value);
@@ -3737,10 +3762,7 @@ async function finalizeSaleInner() {
 
   const user = getCurrentUser();
   if (!user) return;
-  if (cloudMode() && !sync.ready) {
-    toast('A carregar os dados da loja… aguarde um instante e tente de novo.');
-    return;
-  }
+  if (!storeReady()) return;
 
   const paymentMethod = els.saleMethod?.value || 'dinheiro';
 const note = els.saleNote?.value.trim() || '';
@@ -3913,6 +3935,7 @@ document.getElementById('saleForm')?.addEventListener('submit', (e) => {
 document.getElementById('cashForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
+  if (!storeReady()) return;
 
   const amount = Number(els.cashAmount.value);
   const user = getCurrentUser();
@@ -4284,6 +4307,7 @@ if (!ok) return;
 els.expenseForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
+  if (!storeReady()) return;
 
   const editingId = els.expenseEditId.value;
   const payload = {
@@ -4380,6 +4404,7 @@ if (!ok) return;
 els.clientForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireAdmin()) return;
+  if (!storeReady()) return;
 
   const editingId = els.clientEditId.value;
   const payload = {
@@ -5724,7 +5749,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v43.3...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43.4...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
