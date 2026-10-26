@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v43.6)
+// SALDAR SERVIÇOS — app.js (v43.7)
 // =====================================================================
 
 // ============================================================
@@ -282,7 +282,7 @@ const saveLocal = () => {
 };
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
-const APP_BUILD = 'v43.6';
+const APP_BUILD = 'v43.7';
 const DEFAULT_APP_NAME = 'Saldar Serviços';
 const appName = () => String(settings.appName || '').trim() || DEFAULT_APP_NAME;
 function applyBranding() {
@@ -5818,7 +5818,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v43.6...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43.7...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);

@@ -2396,3 +2396,16 @@ td {
   line-height: 1.4;
 }
 .mini-text strong, .item span strong { font-weight: 600; }
+
+/* v43.7 — cartões de exportação: altura automática, botão sempre visível */
+.export-grid { align-items: stretch; }
+.export-grid .item {
+  aspect-ratio: auto !important;
+  height: auto;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 8px;
+}
+.export-grid .item > span:not(.badge) { font-size: 11.5px; line-height: 1.35; }
+.export-grid .card-actions { margin-top: auto; padding-top: 4px; }
+.export-grid .card-actions button { min-height: 38px; }
