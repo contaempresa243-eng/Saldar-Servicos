@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v43.5)
+// SALDAR SERVIÇOS — app.js (v43.6)
 // =====================================================================
 
 // ============================================================
@@ -282,7 +282,7 @@ const saveLocal = () => {
 };
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
-const APP_BUILD = 'v43.5';
+const APP_BUILD = 'v43.6';
 const DEFAULT_APP_NAME = 'Saldar Serviços';
 const appName = () => String(settings.appName || '').trim() || DEFAULT_APP_NAME;
 function applyBranding() {
@@ -4758,6 +4758,46 @@ els.exportStockCsvBtn?.addEventListener('click', exportStockCsv);
 els.exportClientsCsvBtn?.addEventListener('click', exportClientsCsv);
 els.exportAuditCsvBtn?.addEventListener('click', exportAuditCsv);
 
+// Apagar todos os registos de auditoria (só administrador)
+document.getElementById('clearAuditBtn')?.addEventListener('click', async () => {
+  if (!requireAdmin()) return;
+  const ok = await appConfirm('Apagar TODOS os registos de auditoria?\n\nIsto não pode ser desfeito. Vendas, stock e caixa não são afetados.', 'Limpar auditoria', '🗑️');
+  if (!ok) return;
+  const btn = document.getElementById('clearAuditBtn');
+  if (btn) btn.disabled = true;
+  try {
+    let total = 0;
+    if (cloudMode()) {
+      if (!session.db || !session.api) throw new Error('sem ligação');
+      const { collection, getDocs, query, limit, writeBatch } = session.api;
+      for (let i = 0; i < 200; i++) {
+        const snap = await getDocs(query(collection(session.db, 'auditLog'), limit(400)));
+        if (snap.empty) break;
+        const batch = writeBatch(session.db);
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        total += snap.size;
+        toast(`A apagar auditoria… ${total}`, 1500);
+      }
+      state.auditLog = [];
+    } else {
+      total = (state.auditLog || []).length;
+      state.auditLog = [];
+      saveLocal();
+    }
+    renderAuditLog();
+    await logAudit('auditoria-limpar', { apagados: total });
+    toast(`Auditoria limpa (${total} registos apagados).`, 4500);
+  } catch (err) {
+    _origConsoleError('[clearAudit]', err);
+    toast(err?.code === 'permission-denied'
+      ? 'Sem permissão. Publique as novas regras (firestore.rules v43.6) na consola do Firebase.'
+      : 'Erro ao limpar a auditoria: ' + (err?.message || err), 8000);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
 // =====================================================================
 // Backup
 // =====================================================================
@@ -5778,7 +5818,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v43.5...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43.6...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);

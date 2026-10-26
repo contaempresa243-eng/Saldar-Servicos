@@ -1,7 +1,7 @@
-// Saldar Serviços — service worker (v47)
+// Saldar Serviços — service worker (v48)
 // Estratégia: REDE PRIMEIRO para a app (HTML/JS/CSS) → as atualizações chegam logo ao publicar;
 // se não houver internet, usa a cópia guardada. Caches antigas são apagadas.
-const CACHE_NAME = 'saldar-servicos-cache-v47';
+const CACHE_NAME = 'saldar-servicos-cache-v48';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
