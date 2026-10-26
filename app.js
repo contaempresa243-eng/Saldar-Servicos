@@ -1,5 +1,5 @@
 // =====================================================================
-// SALDAR SERVIÇOS — app.js (v43.4)
+// SALDAR SERVIÇOS — app.js (v43.5)
 // =====================================================================
 
 // ============================================================
@@ -282,7 +282,7 @@ const saveLocal = () => {
 };
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const cloudMode = () => Boolean(settings.cloudEnabled && String(settings.firebaseConfig || '').trim());
-const APP_BUILD = 'v43.4';
+const APP_BUILD = 'v43.5';
 const DEFAULT_APP_NAME = 'Saldar Serviços';
 const appName = () => String(settings.appName || '').trim() || DEFAULT_APP_NAME;
 function applyBranding() {
@@ -498,6 +498,8 @@ const els = {
   productPriceWholesale: document.getElementById('productPriceWholesale'),
 productWholesaleQty: document.getElementById('productWholesaleQty'),
 productPriceVip: document.getElementById('productPriceVip'),
+  productCommission: document.getElementById('productCommission'),
+  productCost: document.getElementById('productCost'),
   productSearch: document.getElementById('productSearch'),
   productCards: document.getElementById('productCards'),
   productFormMode: document.getElementById('productFormMode'),
@@ -1190,6 +1192,18 @@ function renderSelectOptions() {
   updateSaleHint();
 }
 
+// Lucro de uma venda: custo por unidade (CF) se definido, senão comissão %
+function calcSaleProfit(product, item) {
+  if (!product) return 0;
+  const cost = Number(product.costPrice || 0);
+  if (product.category !== 'RL' && cost > 0) {
+    return Math.round((Number(item.unitPrice || 0) - cost) * Number(item.quantity || 0) * 100) / 100;
+  }
+  const pct = Number(product.commissionPct || 0);
+  return Math.round(Number(item.total || 0) * pct) / 100;
+}
+const sumProfit = (sales) => sales.reduce((s, h) => s + Number(h.profit || 0), 0);
+
 function getTodaySales() {
   return state.history.filter((item) => item.type === 'venda' && dayOf(item.date) === today());
 }
@@ -1560,6 +1574,7 @@ function renderReport() {
     <div class="item"><strong>Período</strong><span>${esc(label)}</span></div>
     <div class="item"><strong>Total vendido</strong><span>${qty} ${qty === 1 ? 'unidade' : 'unidades'}</span></div>
     <div class="item"><strong>Faturamento</strong><span>${money(revenue)}</span></div>
+    <div class="item"><strong>Lucro das vendas (comissões)</strong><span>${money(sumProfit(sales))}</span></div>
     <div class="item"><strong>Entradas de caixa</strong><span>${money(cashIn)}</span></div>
     <div class="item"><strong>Saídas de caixa</strong><span>${money(cashOut)}</span></div>
     ${top.map(([name, count]) => `<div class="item"><strong>${esc(name)}</strong><span>${count} ${count === 1 ? 'unidade' : 'unidades'}</span></div>`).join('')}
@@ -1692,7 +1707,8 @@ function renderExpenseSummary() {
 
   const sales = range === 'today' ? getTodaySales() : salesForRange(range);
   const salesTotal = sales.reduce((s, h) => s + Number(h.total || 0), 0);
-  const profit = salesTotal - total;
+  const commissions = sumProfit(sales);
+  const profit = commissions - total;
 
   const byCategory = {};
   expenses.forEach(e => {
@@ -1727,6 +1743,10 @@ function renderExpenseSummary() {
       <div class="expense-summary-box">
         <small>Vendas no período</small>
         <strong>${money(salesTotal)}</strong>
+      </div>
+      <div class="expense-summary-box">
+        <small>Lucro das vendas (comissões)</small>
+        <strong>${money(commissions)}</strong>
       </div>
       <div class="expense-summary-box highlight ${profitClass}">
         <small>Lucro real</small>
@@ -1994,6 +2014,8 @@ function resetProductForm() {
   if (els.productPriceWholesale) els.productPriceWholesale.value = '0';
   if (els.productWholesaleQty) els.productWholesaleQty.value = '5';
   if (els.productPriceVip) els.productPriceVip.value = '0';
+  if (els.productCommission) els.productCommission.value = '0';
+  if (els.productCost) els.productCost.value = '0';
 }
 
 function fillProductForm(id) {
@@ -2009,6 +2031,8 @@ function fillProductForm(id) {
   if (els.productPriceWholesale) els.productPriceWholesale.value = product.priceWholesale ?? 0;
   if (els.productWholesaleQty) els.productWholesaleQty.value = product.wholesaleQty ?? 5;
   if (els.productPriceVip) els.productPriceVip.value = product.priceVip ?? 0;
+  if (els.productCommission) els.productCommission.value = product.commissionPct ?? 0;
+  if (els.productCost) els.productCost.value = product.costPrice ?? 0;
   els.productFormMode.textContent = 'Editando produto';
   activate('produtos');
 }
@@ -3480,7 +3504,9 @@ els.productForm?.addEventListener('submit', async (e) => {
     price: Number(els.productPrice.value),
     priceWholesale: Number(els.productPriceWholesale?.value || 0),
 wholesaleQty: Number(els.productWholesaleQty?.value || 5),
-priceVip: Number(els.productPriceVip?.value || 0)
+priceVip: Number(els.productPriceVip?.value || 0),
+  commissionPct: Math.min(100, Math.max(0, Number(els.productCommission?.value || 0))),
+  costPrice: Math.max(0, Number(els.productCost?.value || 0))
   };
 
   if (!payload.name) return toast('Preencha o nome do produto.');
@@ -3813,6 +3839,7 @@ const clientName = els.saleClient?.value.trim() || '';
   quantity: item.quantity,
   unitPrice: item.unitPrice,
   total: item.total,
+  profit: calcSaleProfit(product, item),
   paymentMethod,
   note,
   clientId,
@@ -4847,7 +4874,8 @@ els.exportPdfBtn?.addEventListener('click', () => {
   const revenue = sales.reduce((s, i) => s + Number(i.total || 0), 0);
   const qty = sales.reduce((s, i) => s + Number(i.quantity || 0), 0);
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const profit = revenue - totalExpenses;
+  const commissions = sumProfit(sales);
+  const profit = commissions - totalExpenses;
 
   const user = getCurrentUser();
   const emissionDate = new Date().toLocaleString('pt-PT');
@@ -4911,6 +4939,7 @@ els.exportPdfBtn?.addEventListener('click', () => {
         ['Total de vendas', String(sales.length)],
         ['Unidades vendidas', String(qty)],
         ['Faturamento', money(revenue)],
+        ['Lucro das vendas (comissões)', money(commissions)],
         ['Total de despesas', money(totalExpenses)],
         ['Lucro real', money(profit)]
       ],
@@ -5749,7 +5778,7 @@ if ('serviceWorker' in navigator) {
 // =====================================================================
 
 (async function init() {
-  _origConsoleError('[init] A iniciar Saldar Serviços v43.4...');
+  _origConsoleError('[init] A iniciar Saldar Serviços v43.5...');
   // pede ao navegador para NÃO apagar os dados da app quando houver pouco espaço
   try { navigator.storage?.persist?.(); } catch {}
   _origConsoleError(`[init] Timeout de sessão: ${IDLE_TIMEOUT_MIN} min (aviso ${IDLE_WARNING_SEC}s)`);
