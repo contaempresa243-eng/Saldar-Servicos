@@ -1,1 +1,119 @@
+name: Gerar APK do Saldar Serviços
 
+on:
+  workflow_dispatch:
+  push:
+    tags: ['apk-*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+
+      - name: Preparar ficheiros da app (www)
+        run: |
+          mkdir -p www
+          for f in index.html styles.css app.js manifest.json icon-192.png icon-512.png manual.html apk-bridge.js; do
+            [ -f "$f" ] && cp "$f" www/ || echo "aviso: $f não existe"
+          done
+          # a ponte do APK carrega antes do app.js
+          sed -i 's#<script type="module" src="app.js"></script>#<script src="apk-bridge.js"></script>\n  <script type="module" src="app.js"></script>#' www/index.html
+          grep -n "apk-bridge" www/index.html
+
+      - name: Guardar as bibliotecas dentro do APK (funciona sem internet)
+        run: |
+          mkdir _libs && cd _libs
+          npm init -y > /dev/null
+          if npm install firebase@10.12.5 esbuild jspdf@2.5.1 jspdf-autotable@3.8.2 chart.js@4.4.0; then
+            # Firebase num só ficheiro
+            printf "export * from 'firebase/app';\nexport * from 'firebase/auth';\nexport * from 'firebase/firestore';\n" > entry.js
+            if npx esbuild entry.js --bundle --format=esm --minify --outfile=../www/firebase-all.js && [ -s ../www/firebase-all.js ]; then
+              sed -i 's#import(`https://www.gstatic.com/firebasejs/${V}/firebase-[a-z]*\.js`)#import("./firebase-all.js")#g' ../www/app.js
+              echo "Firebase local: ok"
+            else
+              rm -f ../www/firebase-all.js; echo "AVISO: Firebase continua a vir da internet"
+            fi
+            # PDF e gráficos
+            if cp node_modules/jspdf/dist/jspdf.umd.min.js node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js node_modules/chart.js/dist/chart.umd.js ../www/; then
+              sed -i 's#https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js#jspdf.umd.min.js#; s#https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js#jspdf.plugin.autotable.min.js#; s#https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js#chart.umd.js#' ../www/index.html
+              echo "PDF e gráficos locais: ok"
+            else
+              echo "AVISO: PDF e gráficos continuam a vir da internet"
+            fi
+          else
+            echo "AVISO: não foi possível descarregar as bibliotecas; a app usa a internet para elas"
+          fi
+          cd ..
+          grep -n "script" www/index.html | head -8
+          grep -c "gstatic" www/app.js || true
+
+      - name: Instalar Capacitor e criar projeto Android
+        run: |
+          npm install
+          npx cap add android
+          npx cap sync android
+
+      - name: Instalar ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick
+
+      - name: Plugin nativo, cores e ícone
+        run: |
+          cp android-extra/*.java android/app/src/main/java/com/aldair/saldarservicos/
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />\n    <application#' $M
+          S=android/app/src/main/res/values/styles.xml
+          sed -i 's#<style name="AppTheme.NoActionBar"[^>]*>#&\n        <item name="android:statusBarColor">\#0f766e</item>\n        <item name="android:windowLightStatusBar">false</item>\n        <item name="android:windowBackground">\#0f766e</item>#' $S
+          if [ -f icon-512.png ]; then
+            for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+              dir=android/app/src/main/res/mipmap-${d%%:*}; px=${d##*:}
+              for n in ic_launcher ic_launcher_round ic_launcher_foreground; do
+                convert icon-512.png -resize ${px}x${px} $dir/$n.png
+              done
+            done
+            rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml
+          fi
+
+      - name: Assinar e compilar o APK
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_B64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > android/app/saldar.keystore
+            SP=$(printf "%s" "${{ secrets.KEYSTORE_PASSWORD }}" | tr -d "\r\n ")
+          else
+            echo "AVISO: sem chave guardada, a usar chave temporária (não serve para atualizar a app)"
+            SP="temporaria123"
+            keytool -genkeypair -keystore android/app/saldar.keystore -alias batuque -keyalg RSA -keysize 2048 -validity 10000 -storepass $SP -keypass $SP -dname "CN=Saldar Servicos"
+          fi
+          cat >> android/app/build.gradle <<GRADLE
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("saldar.keystore")
+                      storePassword "$SP"
+                      keyAlias "batuque"
+                      keyPassword "$SP"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
+          }
+          GRADLE
+          cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Saldar-Servicos-APK
+          path: android/app/build/outputs/apk/release/*.apk
