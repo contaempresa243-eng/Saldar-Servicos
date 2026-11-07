@@ -80,6 +80,7 @@
     App.addListener('backButton', function () {
       try {
         var q = function (s) { return document.querySelector(s); };
+        if (!/(^\/$|index\.html$)/.test(location.pathname)) { history.back(); return; }
         var m = q('.modal:not(.hidden)');
         if (m) {
           var b = m.querySelector('.close-modal') || m.querySelector('.ghost') || m.querySelector('button');
