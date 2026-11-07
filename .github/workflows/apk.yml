@@ -20,7 +20,7 @@ jobs:
       - name: Preparar ficheiros da app (www)
         run: |
           mkdir -p www
-          for f in index.html styles.css app.js manifest.json icon-192.png icon-512.png manual.html apk-bridge.js; do
+          for f in index.html styles.css app.js manifest.json icon-192.png icon-512.png manual.html saldar-privacidade.html apk-bridge.js; do
             [ -f "$f" ] && cp "$f" www/ || echo "aviso: $f não existe"
           done
           # a ponte do APK carrega antes do app.js
