@@ -1,0 +1,19 @@
+SALDAR SERVIÇOS · APK ANDROID
+
+Acrescenta estes ficheiros ao repositório do Saldar Serviços (na raiz, ao lado de index.html, app.js...):
+  package.json
+  capacitor.config.json
+  apk-bridge.js
+  android-extra/MainActivity.java
+  android-extra/SaldarNativePlugin.java
+  .github/workflows/apk.yml
+
+Chave de assinatura (uma vez, neste repositório): Settings > Secrets and variables > Actions > New repository secret
+  KEYSTORE_B64       (o mesmo valor do Batuque)
+  KEYSTORE_PASSWORD  (a mesma palavra-passe)
+
+Gerar: Actions > "Gerar APK do Saldar Serviços" > Run workflow > descarregar "Saldar-Servicos-APK".
+
+Dados: a app instalada tem armazenamento próprio (separado do site).
+- Modo nuvem (Firebase): entra com o mesmo utilizador; os dados vêm da nuvem.
+- Modo local: antes de instalar, no site faz Backup > guardar ficheiro; no APK usa Backup > restaurar.

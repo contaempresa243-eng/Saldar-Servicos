@@ -1,0 +1,6 @@
+{
+  "appId": "com.aldair.saldarservicos",
+  "appName": "Saldar Serviços",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
